@@ -213,18 +213,21 @@ export default function StudentLookupPage({ onBack }: StudentLookupPageProps) {
                 <h1 className="font-display text-3xl font-bold text-foreground mb-2">
                   Check Attendance
                 </h1>
-                <p className="text-muted-foreground text-sm">
+                <p className="text-[#1e3a5f] text-sm">
                   Enter your registration number to view your attendance records
                   across all 6 subjects.
                 </p>
-                <p className="text-muted-foreground/70 text-xs mt-1">
+                <p className="text-[#1e3a5f]/70 text-xs mt-1">
                   Batch: 711625AM101 – 711625AM163
                 </p>
               </div>
 
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="reg-input" className="text-sm font-medium">
+                  <Label
+                    htmlFor="reg-input"
+                    className="text-sm font-medium text-[#1e3a5f]"
+                  >
                     Registration Number
                   </Label>
                   <Input
@@ -252,7 +255,7 @@ export default function StudentLookupPage({ onBack }: StudentLookupPageProps) {
                       {validationError}
                     </p>
                   ) : (
-                    <p className="text-muted-foreground text-xs">
+                    <p className="text-[#1e3a5f] text-xs">
                       Format: 711625AM followed by 3 digits (101–163)
                     </p>
                   )}
@@ -325,7 +328,7 @@ export default function StudentLookupPage({ onBack }: StudentLookupPageProps) {
                 <h2 className="font-display text-xl font-bold text-foreground mb-1">
                   Error Loading Records
                 </h2>
-                <p className="text-muted-foreground text-sm max-w-xs">
+                <p className="text-[#1e3a5f] text-sm max-w-xs">
                   Could not fetch records for{" "}
                   <strong className="text-foreground font-mono">
                     {submittedReg}
@@ -361,7 +364,7 @@ export default function StudentLookupPage({ onBack }: StudentLookupPageProps) {
                 <h2 className="font-display text-xl font-bold text-foreground mb-1">
                   No Records Yet
                 </h2>
-                <p className="text-muted-foreground text-sm max-w-xs">
+                <p className="text-[#1e3a5f] text-sm max-w-xs">
                   No attendance has been recorded for{" "}
                   <strong className="text-foreground font-mono">
                     {submittedReg}
@@ -436,7 +439,7 @@ export default function StudentLookupPage({ onBack }: StudentLookupPageProps) {
               </div>
 
               {/* Legend */}
-              <div className="flex items-center gap-4 px-1 flex-wrap text-xs text-muted-foreground">
+              <div className="flex items-center gap-4 px-1 flex-wrap text-xs text-[#1e3a5f]">
                 <span className="flex items-center gap-1.5">
                   <span className="w-3 h-3 rounded-full bg-success/70 inline-block" />
                   Present (P)
@@ -488,7 +491,7 @@ export default function StudentLookupPage({ onBack }: StudentLookupPageProps) {
                       >
                         <div className="grid grid-cols-6 gap-2 px-4 py-3 items-center">
                           <div className="col-span-2">
-                            <p className="text-sm font-medium text-foreground leading-snug">
+                            <p className="text-sm font-medium text-[#1e3a5f] leading-snug">
                               {subj.subjectName}
                             </p>
                             <div className="mt-1.5 h-1.5 bg-muted rounded-full overflow-hidden">
@@ -643,7 +646,7 @@ export default function StudentLookupPage({ onBack }: StudentLookupPageProps) {
 
       {/* Footer */}
       <footer className="py-4 text-center">
-        <p className="text-muted-foreground text-xs">
+        <p className="text-[#1e3a5f] text-xs">
           © {new Date().getFullYear()}.{" "}
           <a
             href={`https://caffeine.ai?utm_source=caffeine-footer&utm_medium=referral&utm_content=${encodeURIComponent(window.location.hostname)}`}

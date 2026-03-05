@@ -46,7 +46,7 @@
 
     /* Muted */
     --muted: 0.95 0.02 215;
-    --muted-foreground: 0.52 0.05 218;
+    --muted-foreground: 0.28 0.1 240;
 
     /* Accent — sky blue lighter */
     --accent: 0.88 0.08 218;
