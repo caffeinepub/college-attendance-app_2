@@ -20,20 +20,20 @@ import {
   GraduationCap,
   Loader2,
   LogOut,
+  ShieldCheck,
   XCircle,
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
-import { AttendanceStatus } from "../backend.d";
-import type { SessionToken } from "../backend.d";
 import {
   useAttendanceByStaff,
   useLogout,
   useMarkAttendance,
-  useStudents,
-  useSubjects,
 } from "../hooks/useQueries";
+import { AttendanceStatus } from "../types/attendance";
+import type { SessionToken } from "../types/attendance";
+import { STUDENTS, SUBJECTS, SUBJECT_MAP } from "../utils/attendanceData";
 
 interface StaffDashboardPageProps {
   token: SessionToken;
@@ -58,32 +58,37 @@ function formatDate(dateStr: string) {
   }
 }
 
+type StudentStatus = "present" | "absent" | "onduty";
+
 // ── Mark Attendance Tab ───────────────────────────────────────────────────────
 
 function MarkAttendanceTab({ token }: { token: SessionToken }) {
-  const { data: subjects, isLoading: subjectsLoading } = useSubjects();
-  const { data: students, isLoading: studentsLoading } = useStudents();
   const { mutate: markAttendance, isPending: isSubmitting } =
     useMarkAttendance();
 
   const [selectedSubject, setSelectedSubject] = useState<string>("");
   const [selectedDate, setSelectedDate] = useState<string>(todayDate());
-  const [attendanceMap, setAttendanceMap] = useState<
-    Record<string, AttendanceStatus>
-  >({});
+  const [statusMap, setStatusMap] = useState<Record<string, StudentStatus>>({});
+  const [confirmed, setConfirmed] = useState<boolean>(false);
 
-  // Initialize all students as absent
-  const studentList = students ?? [];
-  const getStatus = (regNo: string): AttendanceStatus =>
-    attendanceMap[regNo] ?? AttendanceStatus.absent;
+  const getStatus = (regNo: string): StudentStatus =>
+    statusMap[regNo] ?? "absent";
 
-  const setStatus = (regNo: string, status: AttendanceStatus) => {
-    setAttendanceMap((prev) => ({ ...prev, [regNo]: status }));
+  const setStatus = (regNo: string, status: StudentStatus) => {
+    setStatusMap((prev) => ({ ...prev, [regNo]: status }));
   };
 
-  const presentCount = studentList.filter(
-    (s) => getStatus(s.registrationNumber) === AttendanceStatus.present,
+  const setAll = (status: StudentStatus) => {
+    const next: Record<string, StudentStatus> = {};
+    for (const reg of STUDENTS) next[reg] = status;
+    setStatusMap(next);
+  };
+
+  const presentCount = STUDENTS.filter(
+    (r) => getStatus(r) === "present",
   ).length;
+  const absentCount = STUDENTS.filter((r) => getStatus(r) === "absent").length;
+  const onDutyCount = STUDENTS.filter((r) => getStatus(r) === "onduty").length;
 
   const handleSubmit = () => {
     if (!selectedSubject) {
@@ -95,20 +100,29 @@ function MarkAttendanceTab({ token }: { token: SessionToken }) {
       return;
     }
 
-    const attendanceList = studentList.map((s) => ({
-      regNo: s.registrationNumber,
-      status: getStatus(s.registrationNumber),
-    }));
+    // Backend now supports onDuty natively — send all three statuses directly
+    const attendanceList = STUDENTS.map((regNo) => {
+      const s = getStatus(regNo);
+      return {
+        regNo,
+        status:
+          s === "present"
+            ? AttendanceStatus.present
+            : s === "onduty"
+              ? AttendanceStatus.onDuty
+              : AttendanceStatus.absent,
+      };
+    });
 
     markAttendance(
       { token, subjectId: selectedSubject, date: selectedDate, attendanceList },
       {
         onSuccess: () => {
-          toast.success("Attendance submitted successfully", {
-            description: `${presentCount} present, ${studentList.length - presentCount} absent.`,
+          toast.success("Attendance submitted", {
+            description: `${presentCount} present · ${absentCount} absent · ${onDutyCount} on-duty`,
           });
-          // Reset attendance map for next session
-          setAttendanceMap({});
+          setStatusMap({});
+          setConfirmed(false);
         },
         onError: (err) => {
           toast.error("Failed to submit attendance", {
@@ -119,10 +133,8 @@ function MarkAttendanceTab({ token }: { token: SessionToken }) {
     );
   };
 
-  const isLoading = subjectsLoading || studentsLoading;
-
   return (
-    <div className="space-y-5">
+    <div className="space-y-4">
       {/* Controls */}
       <div className="bg-card border border-border rounded-xl p-4 shadow-xs">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -130,28 +142,21 @@ function MarkAttendanceTab({ token }: { token: SessionToken }) {
             <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
               Subject
             </Label>
-            {subjectsLoading ? (
-              <Skeleton className="h-11 w-full rounded-xl" />
-            ) : (
-              <Select
-                value={selectedSubject}
-                onValueChange={setSelectedSubject}
+            <Select value={selectedSubject} onValueChange={setSelectedSubject}>
+              <SelectTrigger
+                data-ocid="staff.subject_select"
+                className="h-11 rounded-xl border-border bg-background focus:ring-primary"
               >
-                <SelectTrigger
-                  data-ocid="staff.subject_select"
-                  className="h-11 rounded-xl border-border bg-background focus:ring-primary"
-                >
-                  <SelectValue placeholder="Select subject…" />
-                </SelectTrigger>
-                <SelectContent>
-                  {(subjects ?? []).map((subj) => (
-                    <SelectItem key={subj.id} value={subj.id}>
-                      {subj.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            )}
+                <SelectValue placeholder="Select subject…" />
+              </SelectTrigger>
+              <SelectContent>
+                {SUBJECTS.map((subj) => (
+                  <SelectItem key={subj.id} value={subj.id}>
+                    {subj.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="space-y-2">
@@ -170,158 +175,176 @@ function MarkAttendanceTab({ token }: { token: SessionToken }) {
         </div>
 
         {/* Summary row */}
-        {!isLoading && studentList.length > 0 && (
-          <div className="flex items-center gap-4 mt-4 pt-4 border-t border-border text-sm">
-            <span className="text-muted-foreground">
-              {studentList.length} students
-            </span>
-            <div className="flex items-center gap-1.5 text-success-foreground">
-              <CheckCircle2 className="w-4 h-4 text-success" />
-              <span className="font-medium">{presentCount} present</span>
-            </div>
-            <div className="flex items-center gap-1.5 text-destructive">
-              <XCircle className="w-4 h-4" />
-              <span className="font-medium">
-                {studentList.length - presentCount} absent
-              </span>
-            </div>
+        <div className="flex flex-wrap items-center gap-x-5 gap-y-2 mt-4 pt-4 border-t border-border text-sm">
+          <span className="text-muted-foreground font-medium">
+            {STUDENTS.length} students
+          </span>
+          <span className="flex items-center gap-1.5 text-success-foreground font-semibold">
+            <CheckCircle2 className="w-4 h-4 text-success" />
+            {presentCount} Present
+          </span>
+          <span className="flex items-center gap-1.5 text-destructive font-semibold">
+            <XCircle className="w-4 h-4" />
+            {absentCount} Absent
+          </span>
+          <span className="flex items-center gap-1.5 text-onduty-foreground font-semibold">
+            <ShieldCheck className="w-4 h-4 text-onduty" />
+            {onDutyCount} On-Duty
+          </span>
+
+          {/* Bulk actions */}
+          <div className="ml-auto flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setAll("present")}
+              className="text-xs px-2.5 py-1.5 rounded-lg bg-success/10 text-success-foreground hover:bg-success/20 transition-colors font-medium"
+            >
+              All Present
+            </button>
+            <button
+              type="button"
+              onClick={() => setAll("absent")}
+              className="text-xs px-2.5 py-1.5 rounded-lg bg-destructive/10 text-destructive hover:bg-destructive/20 transition-colors font-medium"
+            >
+              All Absent
+            </button>
           </div>
-        )}
+        </div>
       </div>
 
-      {/* Student list */}
-      {isLoading ? (
-        <div data-ocid="staff.loading_state" className="space-y-2">
-          {[1, 2, 3, 4, 5].map((i) => (
-            <div
-              key={i}
-              className="bg-card border border-border rounded-xl p-4 flex items-center gap-4"
-            >
-              <Skeleton className="h-9 w-9 rounded-lg" />
-              <div className="flex-1 space-y-1.5">
-                <Skeleton className="h-4 w-32" />
-                <Skeleton className="h-3 w-20" />
-              </div>
-              <Skeleton className="h-9 w-40 rounded-xl" />
-            </div>
-          ))}
-        </div>
-      ) : studentList.length === 0 ? (
-        <div
-          data-ocid="staff.student.empty_state"
-          className="flex flex-col items-center gap-3 py-16 text-center"
-        >
-          <AlertCircle className="w-10 h-10 text-muted-foreground/50" />
-          <p className="text-muted-foreground text-sm">No students found.</p>
-        </div>
-      ) : (
-        <ScrollArea className="max-h-[480px]">
-          <div className="space-y-2 pr-1">
-            {studentList.map((student, index) => {
-              const status = getStatus(student.registrationNumber);
-              const isPresent = status === AttendanceStatus.present;
-              const isAbsent = status === AttendanceStatus.absent;
+      {/* Student list + submit button */}
+      <ScrollArea className="max-h-[580px]">
+        <div className="space-y-1.5 pr-1">
+          {STUDENTS.map((regNo, index) => {
+            const status = getStatus(regNo);
+            const isPresent = status === "present";
+            const isAbsent = status === "absent";
+            const isOnDuty = status === "onduty";
 
-              return (
-                <motion.div
-                  key={student.registrationNumber}
-                  data-ocid={`staff.student_item.${index + 1}`}
-                  initial={{ opacity: 0, y: 8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: index * 0.02 }}
-                  className={`flex items-center gap-3 p-3.5 rounded-xl border transition-all ${
-                    isPresent
-                      ? "bg-success/8 border-success/30"
+            return (
+              <motion.div
+                key={regNo}
+                data-ocid={`staff.student_item.${index + 1}`}
+                initial={{ opacity: 0, y: 4 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: Math.min(index * 0.008, 0.3) }}
+                className={`flex items-center gap-3 px-3.5 py-2.5 rounded-xl border transition-all ${
+                  isPresent
+                    ? "bg-success/8 border-success/25"
+                    : isOnDuty
+                      ? "bg-onduty/8 border-onduty/25"
                       : "bg-card border-border"
+                }`}
+              >
+                {/* Index badge */}
+                <div
+                  className={`w-8 h-8 rounded-lg flex items-center justify-center text-[11px] font-bold shrink-0 ${
+                    isPresent
+                      ? "bg-success/20 text-success-foreground"
+                      : isOnDuty
+                        ? "bg-onduty/20 text-onduty-foreground"
+                        : "bg-muted text-muted-foreground"
                   }`}
                 >
-                  {/* Student info */}
-                  <div
-                    className={`w-9 h-9 rounded-lg flex items-center justify-center text-xs font-bold shrink-0 ${
+                  {index + 1}
+                </div>
+
+                {/* Reg number */}
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-foreground font-mono tracking-tight">
+                    {regNo}
+                  </p>
+                </div>
+
+                {/* Toggle buttons */}
+                <div className="flex items-center gap-1 shrink-0">
+                  <button
+                    type="button"
+                    data-ocid={`staff.present_toggle.${index + 1}`}
+                    onClick={() => setStatus(regNo, "present")}
+                    className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
                       isPresent
-                        ? "bg-success/20 text-success-foreground"
-                        : "bg-muted text-muted-foreground"
+                        ? "bg-success text-success-foreground shadow-xs"
+                        : "bg-muted text-muted-foreground hover:bg-success/15 hover:text-success-foreground"
                     }`}
                   >
-                    {student.name.slice(0, 2).toUpperCase()}
-                  </div>
+                    <CheckCircle2 className="w-3.5 h-3.5" />
+                    <span className="hidden sm:inline">P</span>
+                  </button>
+                  <button
+                    type="button"
+                    data-ocid={`staff.absent_toggle.${index + 1}`}
+                    onClick={() => setStatus(regNo, "absent")}
+                    className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+                      isAbsent
+                        ? "bg-destructive text-destructive-foreground shadow-xs"
+                        : "bg-muted text-muted-foreground hover:bg-destructive/15 hover:text-destructive"
+                    }`}
+                  >
+                    <XCircle className="w-3.5 h-3.5" />
+                    <span className="hidden sm:inline">A</span>
+                  </button>
+                  <button
+                    type="button"
+                    data-ocid={`staff.onduty_toggle.${index + 1}`}
+                    onClick={() => setStatus(regNo, "onduty")}
+                    className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+                      isOnDuty
+                        ? "bg-onduty text-onduty-foreground shadow-xs"
+                        : "bg-muted text-muted-foreground hover:bg-onduty/15 hover:text-onduty-foreground"
+                    }`}
+                  >
+                    <ShieldCheck className="w-3.5 h-3.5" />
+                    <span className="hidden sm:inline">OD</span>
+                  </button>
+                </div>
+              </motion.div>
+            );
+          })}
 
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-foreground truncate">
-                      {student.name}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {student.registrationNumber}
-                    </p>
-                  </div>
+          {/* Confirmation checkbox + Submit button — shown below last student */}
+          <div className="pt-4 pb-2 space-y-3">
+            <label
+              htmlFor="confirm-submit"
+              className="flex items-center gap-3 px-3.5 py-3 rounded-xl border border-border bg-card cursor-pointer select-none hover:bg-muted/40 transition-colors"
+            >
+              <input
+                id="confirm-submit"
+                type="checkbox"
+                data-ocid="staff.confirm_checkbox"
+                checked={confirmed}
+                onChange={(e) => setConfirmed(e.target.checked)}
+                className="w-4 h-4 accent-primary rounded cursor-pointer"
+              />
+              <span className="text-sm text-muted-foreground">
+                I have reviewed all attendance entries and confirm they are
+                correct.
+              </span>
+            </label>
 
-                  {/* Toggle buttons */}
-                  <div className="flex items-center gap-1.5 shrink-0">
-                    <button
-                      type="button"
-                      data-ocid={`staff.present_toggle.${index + 1}`}
-                      onClick={() =>
-                        setStatus(
-                          student.registrationNumber,
-                          AttendanceStatus.present,
-                        )
-                      }
-                      className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
-                        isPresent
-                          ? "bg-success text-success-foreground shadow-xs"
-                          : "bg-muted text-muted-foreground hover:bg-success/15 hover:text-success-foreground"
-                      }`}
-                    >
-                      <CheckCircle2 className="w-3.5 h-3.5" />
-                      <span className="hidden sm:inline">Present</span>
-                    </button>
-                    <button
-                      type="button"
-                      data-ocid={`staff.absent_toggle.${index + 1}`}
-                      onClick={() =>
-                        setStatus(
-                          student.registrationNumber,
-                          AttendanceStatus.absent,
-                        )
-                      }
-                      className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
-                        isAbsent
-                          ? "bg-destructive text-destructive-foreground shadow-xs"
-                          : "bg-muted text-muted-foreground hover:bg-destructive/15 hover:text-destructive"
-                      }`}
-                    >
-                      <XCircle className="w-3.5 h-3.5" />
-                      <span className="hidden sm:inline">Absent</span>
-                    </button>
-                  </div>
-                </motion.div>
-              );
-            })}
+            <Button
+              data-ocid="staff.submit_button"
+              onClick={handleSubmit}
+              disabled={
+                isSubmitting || !selectedSubject || !selectedDate || !confirmed
+              }
+              className="w-full h-12 rounded-xl text-base font-medium bg-primary hover:bg-primary/90 text-primary-foreground shadow-card disabled:opacity-50"
+            >
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Submitting…
+                </>
+              ) : (
+                <>
+                  <ClipboardList className="w-4 h-4 mr-2" />
+                  Submit Attendance
+                </>
+              )}
+            </Button>
           </div>
-        </ScrollArea>
-      )}
-
-      {/* Submit button */}
-      {!isLoading && studentList.length > 0 && (
-        <Button
-          data-ocid="staff.submit_button"
-          onClick={handleSubmit}
-          disabled={isSubmitting || !selectedSubject || !selectedDate}
-          className="w-full h-12 rounded-xl text-base font-medium bg-primary hover:bg-primary/90 text-primary-foreground shadow-card"
-        >
-          {isSubmitting ? (
-            <>
-              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-              Submitting…
-            </>
-          ) : (
-            <>
-              <ClipboardList className="w-4 h-4 mr-2" />
-              Submit Attendance
-            </>
-          )}
-        </Button>
-      )}
+        </div>
+      </ScrollArea>
     </div>
   );
 }
@@ -330,25 +353,27 @@ function MarkAttendanceTab({ token }: { token: SessionToken }) {
 
 function ViewRecordsTab({ token }: { token: SessionToken }) {
   const { data: records, isLoading, isError } = useAttendanceByStaff(token);
-  const { data: subjects } = useSubjects();
 
-  const subjectMap = useMemo(() => {
-    const m: Record<string, string> = {};
-    for (const s of subjects ?? []) {
-      m[s.id] = s.name;
-    }
-    return m;
-  }, [subjects]);
+  const [filterSubject, setFilterSubject] = useState<string>("all");
+  const [filterDate, setFilterDate] = useState<string>("");
 
-  // Group records by date then subject
+  // Group records by date then subject, reading status directly from backend records
   const grouped = useMemo(() => {
     if (!records) return [];
+
+    const filtered = records.filter((r) => {
+      if (filterSubject !== "all" && r.subjectId !== filterSubject)
+        return false;
+      if (filterDate && r.date !== filterDate) return false;
+      return true;
+    });
+
     const byDate: Record<string, typeof records> = {};
-    for (const r of records) {
+    for (const r of filtered) {
       if (!byDate[r.date]) byDate[r.date] = [];
       byDate[r.date].push(r);
     }
-    // Sort by date descending
+
     return Object.entries(byDate)
       .sort(([a], [b]) => b.localeCompare(a))
       .map(([date, recs]) => {
@@ -357,9 +382,9 @@ function ViewRecordsTab({ token }: { token: SessionToken }) {
           if (!bySubject[r.subjectId]) bySubject[r.subjectId] = [];
           bySubject[r.subjectId].push(r);
         }
-        return { date, subjects: bySubject };
+        return { date, subjectGroups: bySubject };
       });
-  }, [records]);
+  }, [records, filterSubject, filterDate]);
 
   if (isLoading) {
     return (
@@ -393,98 +418,172 @@ function ViewRecordsTab({ token }: { token: SessionToken }) {
     );
   }
 
-  if (grouped.length === 0) {
-    return (
-      <div
-        data-ocid="staff.records.empty_state"
-        className="flex flex-col items-center gap-4 py-16 text-center"
-      >
-        <div className="w-14 h-14 rounded-2xl bg-muted flex items-center justify-center">
-          <ClipboardList className="w-7 h-7 text-muted-foreground/60" />
-        </div>
-        <div>
-          <p className="font-medium text-foreground mb-1">No records yet</p>
-          <p className="text-muted-foreground text-sm">
-            Submitted attendance will appear here.
-          </p>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="space-y-4">
-      {grouped.map(({ date, subjects: subjectGroups }, dateIdx) => (
-        <motion.div
-          key={date}
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: dateIdx * 0.05 }}
-          className="bg-card border border-border rounded-xl overflow-hidden shadow-xs"
-        >
-          {/* Date header */}
-          <div className="flex items-center gap-2 px-4 py-3 border-b border-border bg-muted/40">
-            <CalendarDays className="w-4 h-4 text-primary" />
-            <span className="font-display font-semibold text-sm text-foreground">
-              {formatDate(date)}
-            </span>
-            <span className="ml-auto text-xs text-muted-foreground">
-              {Object.values(subjectGroups).flat().length} records
-            </span>
-          </div>
-
-          {/* Subjects within date */}
-          {Object.entries(subjectGroups).map(([subjectId, recs]) => {
-            const subjectName = subjectMap[subjectId] || subjectId;
-            const presentCount = recs.filter(
-              (r) => r.status === AttendanceStatus.present,
-            ).length;
-            const absentCount = recs.length - presentCount;
-
-            return (
-              <div
-                key={subjectId}
-                className="px-4 py-3 border-b border-border last:border-b-0"
+      {/* Filters */}
+      <div className="bg-card border border-border rounded-xl p-4 shadow-xs">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+              Filter by Subject
+            </Label>
+            <Select value={filterSubject} onValueChange={setFilterSubject}>
+              <SelectTrigger
+                data-ocid="staff.records.subject_select"
+                className="h-10 rounded-xl border-border bg-background"
               >
-                <div className="flex items-center gap-2 mb-2">
-                  <BookOpen className="w-3.5 h-3.5 text-muted-foreground" />
-                  <span className="text-sm font-medium text-foreground">
-                    {subjectName}
-                  </span>
-                  <div className="ml-auto flex items-center gap-2">
-                    <Badge className="bg-success/15 text-success-foreground border border-success/20 text-xs px-2 py-0.5">
-                      {presentCount} P
-                    </Badge>
-                    <Badge className="bg-destructive/15 text-destructive border border-destructive/20 text-xs px-2 py-0.5">
-                      {absentCount} A
-                    </Badge>
-                  </div>
-                </div>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Subjects</SelectItem>
+                {SUBJECTS.map((s) => (
+                  <SelectItem key={s.id} value={s.id}>
+                    {s.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-2">
+            <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+              Filter by Date
+            </Label>
+            <input
+              data-ocid="staff.records.date_input"
+              type="date"
+              value={filterDate}
+              onChange={(e) => setFilterDate(e.target.value)}
+              className="w-full h-10 rounded-xl border border-border bg-background px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-colors"
+            />
+          </div>
+        </div>
+        {(filterSubject !== "all" || filterDate) && (
+          <button
+            type="button"
+            onClick={() => {
+              setFilterSubject("all");
+              setFilterDate("");
+            }}
+            className="mt-3 text-xs text-primary hover:underline font-medium"
+          >
+            Clear filters
+          </button>
+        )}
+      </div>
 
-                <div className="flex flex-wrap gap-1.5">
-                  {recs.map((rec) => (
-                    <div
-                      key={`${rec.regNo}-${rec.subjectId}-${rec.date}`}
-                      className={`inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium ${
-                        rec.status === AttendanceStatus.present
-                          ? "bg-success/10 text-success-foreground"
-                          : "bg-destructive/10 text-destructive"
-                      }`}
-                    >
-                      {rec.status === AttendanceStatus.present ? (
-                        <CheckCircle2 className="w-3 h-3" />
-                      ) : (
-                        <XCircle className="w-3 h-3" />
-                      )}
-                      {rec.regNo}
-                    </div>
-                  ))}
-                </div>
+      {grouped.length === 0 ? (
+        <div
+          data-ocid="staff.records.empty_state"
+          className="flex flex-col items-center gap-4 py-16 text-center"
+        >
+          <div className="w-14 h-14 rounded-2xl bg-muted flex items-center justify-center">
+            <ClipboardList className="w-7 h-7 text-muted-foreground/60" />
+          </div>
+          <div>
+            <p className="font-medium text-foreground mb-1">No records found</p>
+            <p className="text-muted-foreground text-sm">
+              {filterSubject !== "all" || filterDate
+                ? "No records match the current filters."
+                : "Submitted attendance will appear here."}
+            </p>
+          </div>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {grouped.map(({ date, subjectGroups }, dateIdx) => (
+            <motion.div
+              key={date}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: dateIdx * 0.05 }}
+              className="bg-card border border-border rounded-xl overflow-hidden shadow-xs"
+            >
+              {/* Date header */}
+              <div className="flex items-center gap-2 px-4 py-3 border-b border-border bg-muted/40">
+                <CalendarDays className="w-4 h-4 text-primary" />
+                <span className="font-display font-semibold text-sm text-foreground">
+                  {formatDate(date)}
+                </span>
+                <span className="ml-auto text-xs text-muted-foreground">
+                  {Object.values(subjectGroups).flat().length} records
+                </span>
               </div>
-            );
-          })}
-        </motion.div>
-      ))}
+
+              {/* Subjects within date */}
+              {Object.entries(subjectGroups).map(([subjectId, recs]) => {
+                const subjectName = SUBJECT_MAP[subjectId] ?? subjectId;
+
+                // Read status directly from backend records (backend stores onDuty natively)
+                const presentCount = recs.filter(
+                  (r) => r.status === AttendanceStatus.present,
+                ).length;
+                const onDutyCount = recs.filter(
+                  (r) => r.status === AttendanceStatus.onDuty,
+                ).length;
+                const absentCount = recs.filter(
+                  (r) => r.status === AttendanceStatus.absent,
+                ).length;
+
+                return (
+                  <div
+                    key={subjectId}
+                    className="px-4 py-3 border-b border-border last:border-b-0"
+                  >
+                    <div className="flex items-center gap-2 mb-3">
+                      <BookOpen className="w-3.5 h-3.5 text-muted-foreground" />
+                      <span className="text-sm font-medium text-foreground">
+                        {subjectName}
+                      </span>
+                      <div className="ml-auto flex items-center gap-1.5">
+                        <Badge className="bg-success/15 text-success-foreground border border-success/20 text-xs px-2 py-0.5">
+                          {presentCount} P
+                        </Badge>
+                        <Badge className="bg-destructive/15 text-destructive border border-destructive/20 text-xs px-2 py-0.5">
+                          {absentCount} A
+                        </Badge>
+                        {onDutyCount > 0 && (
+                          <Badge className="bg-onduty/15 text-onduty-foreground border border-onduty/20 text-xs px-2 py-0.5">
+                            {onDutyCount} OD
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="flex flex-wrap gap-1.5">
+                      {recs.map((rec) => {
+                        const isOD = rec.status === AttendanceStatus.onDuty;
+                        const isPresent =
+                          rec.status === AttendanceStatus.present;
+                        return (
+                          <div
+                            key={`${rec.regNo}-${rec.subjectId}-${rec.date}`}
+                            className={`inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-mono font-medium ${
+                              isOD
+                                ? "bg-onduty/10 text-onduty-foreground"
+                                : isPresent
+                                  ? "bg-success/10 text-success-foreground"
+                                  : "bg-destructive/10 text-destructive"
+                            }`}
+                          >
+                            {isOD ? (
+                              <ShieldCheck className="w-3 h-3" />
+                            ) : isPresent ? (
+                              <CheckCircle2 className="w-3 h-3" />
+                            ) : (
+                              <XCircle className="w-3 h-3" />
+                            )}
+                            {rec.regNo}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+            </motion.div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -504,7 +603,6 @@ export default function StaffDashboardPage({
         onLogout();
       },
       onError: () => {
-        // Log out client-side even if server call fails
         toast.info("Logged out");
         onLogout();
       },
@@ -525,7 +623,7 @@ export default function StaffDashboardPage({
                 Staff Dashboard
               </span>
               <p className="text-muted-foreground text-[10px] leading-tight">
-                AttendanceIQ
+                AttendanceIQ · 711625AM Batch
               </p>
             </div>
           </div>

@@ -30,8 +30,8 @@ export default function HomePage({
           transition={{ duration: 0.5, ease: "easeOut" }}
           className="text-center mb-14 max-w-xl"
         >
-          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-accent/20 border border-accent/30 text-accent-foreground text-xs font-medium tracking-wide mb-6">
-            <span className="w-1.5 h-1.5 rounded-full bg-accent-foreground/70 inline-block" />
+          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-primary/10 border border-primary/20 text-primary text-xs font-medium tracking-wide mb-6">
+            <span className="w-1.5 h-1.5 rounded-full bg-primary inline-block" />
             Academic Attendance Portal
           </div>
           <h1 className="font-display text-4xl sm:text-5xl font-bold text-foreground leading-tight mb-4">
@@ -40,9 +40,9 @@ export default function HomePage({
             <span className="text-primary">Achieve Excellence</span>
           </h1>
           <p className="text-muted-foreground text-base leading-relaxed">
-            A modern attendance management system for students and staff.
+            Attendance management for the 711625AM batch.
             <br className="hidden sm:block" />
-            Real-time records, instant insights.
+            Mark records, track on-duty, view subject-wise stats.
           </p>
         </motion.div>
 
@@ -71,8 +71,8 @@ export default function HomePage({
                 Staff Panel
               </h2>
               <p className="text-primary-foreground/75 text-sm leading-relaxed mb-6">
-                Mark daily attendance, manage records, and track student
-                presence by subject.
+                Mark attendance for 63 students — Present, Absent, or On-Duty —
+                per subject and date.
               </p>
               <div className="flex items-center gap-2 text-sm font-medium">
                 Login as Staff
@@ -123,7 +123,7 @@ export default function HomePage({
           className="mt-14 flex items-center gap-8 text-center"
         >
           {[
-            { label: "Students", value: "50+" },
+            { label: "Students", value: "63" },
             { label: "Subjects", value: "6" },
             { label: "On-Chain Records", value: "∞" },
           ].map((stat) => (

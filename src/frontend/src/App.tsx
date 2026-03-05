@@ -1,27 +1,16 @@
 import { Toaster } from "@/components/ui/sonner";
-import { useEffect, useState } from "react";
-import { useActor } from "./hooks/useActor";
-import { useInitSeedData } from "./hooks/useQueries";
+import { useState } from "react";
+import EnterPage from "./pages/EnterPage";
 import HomePage from "./pages/HomePage";
 import StaffDashboardPage from "./pages/StaffDashboardPage";
 import StaffLoginPage from "./pages/StaffLoginPage";
 import StudentLookupPage from "./pages/StudentLookupPage";
 
-type Page = "home" | "student" | "staff-login" | "staff-dashboard";
+type Page = "enter" | "home" | "student" | "staff-login" | "staff-dashboard";
 
 export default function App() {
-  const [page, setPage] = useState<Page>("home");
+  const [page, setPage] = useState<Page>("enter");
   const [sessionToken, setSessionToken] = useState<string | null>(null);
-  const { actor, isFetching } = useActor();
-  const { mutate: initSeed } = useInitSeedData();
-
-  // Seed data once actor is ready
-  // biome-ignore lint/correctness/useExhaustiveDependencies: initSeed is a stable mutation fn
-  useEffect(() => {
-    if (actor && !isFetching) {
-      initSeed();
-    }
-  }, [actor, isFetching]);
 
   const handleStaffLogin = (token: string) => {
     setSessionToken(token);
@@ -36,6 +25,8 @@ export default function App() {
   return (
     <div className="min-h-screen flex flex-col font-body">
       <Toaster richColors position="top-right" />
+
+      {page === "enter" && <EnterPage onEnter={() => setPage("home")} />}
 
       {page === "home" && (
         <HomePage

@@ -53,6 +53,10 @@ export default {
           DEFAULT: "oklch(var(--warning) / <alpha-value>)",
           foreground: "oklch(var(--warning-foreground))",
         },
+        onduty: {
+          DEFAULT: "oklch(var(--onduty) / <alpha-value>)",
+          foreground: "oklch(var(--onduty-foreground))",
+        },
         popover: {
           DEFAULT: "oklch(var(--popover))",
           foreground: "oklch(var(--popover-foreground))",

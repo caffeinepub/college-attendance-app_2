@@ -24,33 +24,33 @@
   :root {
     --radius: 0.75rem;
 
-    /* Backgrounds */
-    --background: 0.97 0.006 240;
-    --foreground: 0.15 0.02 255;
+    /* Backgrounds — pure white */
+    --background: 1 0 0;
+    --foreground: 0.18 0.04 220;
 
-    /* Cards */
+    /* Cards — white */
     --card: 1 0 0;
-    --card-foreground: 0.15 0.02 255;
+    --card-foreground: 0.18 0.04 220;
 
     /* Popover */
     --popover: 1 0 0;
-    --popover-foreground: 0.15 0.02 255;
+    --popover-foreground: 0.18 0.04 220;
 
-    /* Primary — deep navy-teal */
-    --primary: 0.28 0.065 240;
-    --primary-foreground: 0.99 0 0;
+    /* Primary — sky blue */
+    --primary: 0.58 0.18 222;
+    --primary-foreground: 1 0 0;
 
-    /* Secondary — mid teal */
-    --secondary: 0.92 0.03 240;
-    --secondary-foreground: 0.28 0.065 240;
+    /* Secondary — light sky tint */
+    --secondary: 0.94 0.04 218;
+    --secondary-foreground: 0.38 0.12 222;
 
     /* Muted */
-    --muted: 0.93 0.012 240;
-    --muted-foreground: 0.52 0.025 240;
+    --muted: 0.95 0.02 215;
+    --muted-foreground: 0.52 0.05 218;
 
-    /* Accent — warm amber */
-    --accent: 0.88 0.12 75;
-    --accent-foreground: 0.2 0.04 75;
+    /* Accent — sky blue lighter */
+    --accent: 0.88 0.08 218;
+    --accent-foreground: 0.28 0.1 222;
 
     /* Status colors */
     --success: 0.62 0.17 145;
@@ -60,66 +60,72 @@
     --destructive: 0.58 0.22 25;
     --destructive-foreground: 0.985 0 0;
 
-    /* Borders & inputs */
-    --border: 0.88 0.018 240;
-    --input: 0.88 0.018 240;
-    --ring: 0.52 0.08 240;
+    /* On-duty (info/blue) */
+    --onduty: 0.52 0.16 235;
+    --onduty-foreground: 0.98 0 0;
+
+    /* Borders & inputs — soft sky */
+    --border: 0.88 0.04 218;
+    --input: 0.88 0.04 218;
+    --ring: 0.58 0.18 222;
 
     /* Charts */
-    --chart-1: 0.62 0.17 145;
-    --chart-2: 0.78 0.17 75;
-    --chart-3: 0.58 0.22 25;
-    --chart-4: 0.56 0.14 200;
+    --chart-1: 0.58 0.18 222;
+    --chart-2: 0.62 0.17 145;
+    --chart-3: 0.78 0.17 75;
+    --chart-4: 0.58 0.22 25;
     --chart-5: 0.72 0.12 290;
 
     /* Sidebar */
-    --sidebar: 0.22 0.05 245;
-    --sidebar-foreground: 0.94 0.01 240;
-    --sidebar-primary: 0.7 0.12 75;
-    --sidebar-primary-foreground: 0.15 0.02 255;
-    --sidebar-accent: 0.32 0.06 245;
-    --sidebar-accent-foreground: 0.94 0.01 240;
-    --sidebar-border: 0.35 0.06 245;
-    --sidebar-ring: 0.52 0.08 240;
+    --sidebar: 0.52 0.16 220;
+    --sidebar-foreground: 0.97 0.01 218;
+    --sidebar-primary: 1 0 0;
+    --sidebar-primary-foreground: 0.52 0.16 220;
+    --sidebar-accent: 0.62 0.18 222;
+    --sidebar-accent-foreground: 0.97 0.01 218;
+    --sidebar-border: 0.65 0.16 220;
+    --sidebar-ring: 0.78 0.12 218;
   }
 
   .dark {
-    --background: 0.12 0.02 250;
-    --foreground: 0.94 0.01 240;
-    --card: 0.18 0.03 250;
-    --card-foreground: 0.94 0.01 240;
-    --popover: 0.2 0.03 250;
-    --popover-foreground: 0.94 0.01 240;
-    --primary: 0.7 0.12 75;
-    --primary-foreground: 0.12 0.02 250;
-    --secondary: 0.25 0.04 250;
-    --secondary-foreground: 0.94 0.01 240;
-    --muted: 0.22 0.035 250;
-    --muted-foreground: 0.6 0.025 240;
-    --accent: 0.7 0.14 75;
-    --accent-foreground: 0.12 0.02 250;
+    --background: 0.13 0.03 222;
+    --foreground: 0.95 0.01 218;
+    --card: 0.18 0.04 222;
+    --card-foreground: 0.95 0.01 218;
+    --popover: 0.2 0.04 222;
+    --popover-foreground: 0.95 0.01 218;
+    --primary: 0.65 0.19 222;
+    --primary-foreground: 0.1 0.02 222;
+    --secondary: 0.25 0.05 222;
+    --secondary-foreground: 0.95 0.01 218;
+    --muted: 0.22 0.04 222;
+    --muted-foreground: 0.62 0.04 218;
+    --accent: 0.68 0.14 222;
+    --accent-foreground: 0.1 0.02 222;
     --success: 0.62 0.17 145;
     --success-foreground: 0.98 0 0;
     --warning: 0.78 0.17 75;
     --warning-foreground: 0.1 0.02 75;
     --destructive: 0.65 0.24 25;
     --destructive-foreground: 0.98 0 0;
-    --border: 0.28 0.04 250;
-    --input: 0.28 0.04 250;
-    --ring: 0.5 0.08 240;
-    --chart-1: 0.62 0.17 145;
-    --chart-2: 0.78 0.17 75;
-    --chart-3: 0.65 0.24 25;
-    --chart-4: 0.56 0.14 200;
+    --border: 0.28 0.05 222;
+    --input: 0.28 0.05 222;
+    --ring: 0.58 0.14 222;
+    --onduty: 0.56 0.17 235;
+    --onduty-foreground: 0.98 0 0;
+    --chart-1: 0.65 0.19 222;
+    --chart-2: 0.62 0.17 145;
+    --chart-3: 0.78 0.17 75;
+    --chart-4: 0.65 0.24 25;
     --chart-5: 0.72 0.12 290;
-    --sidebar: 0.15 0.03 250;
-    --sidebar-foreground: 0.94 0.01 240;
-    --sidebar-primary: 0.7 0.12 75;
-    --sidebar-primary-foreground: 0.12 0.02 250;
-    --sidebar-accent: 0.2 0.04 250;
-    --sidebar-accent-foreground: 0.94 0.01 240;
-    --sidebar-border: 0.25 0.04 250;
-    --sidebar-ring: 0.5 0.08 240;
+    --sidebar: 0.15 0.04 222;
+    --sidebar-foreground: 0.95 0.01 218;
+    --sidebar-primary: 0.65 0.19 222;
+    --sidebar-primary-foreground: 0.1 0.02 222;
+    --sidebar-accent: 0.22 0.05 222;
+    --sidebar-accent-foreground: 0.95 0.01 218;
+    --sidebar-border: 0.28 0.05 222;
+    --sidebar-ring: 0.58 0.14 222;
   }
 
   * {
@@ -159,11 +165,58 @@
   animation: fade-up 0.35s ease-out both;
 }
 
-/* Mesh background for homepage */
+/* Mesh background for homepage — sky blue and white */
 .mesh-bg {
   background-color: oklch(var(--background));
   background-image:
-    radial-gradient(ellipse 80% 60% at 20% 10%, oklch(0.55 0.1 240 / 0.12) 0%, transparent 60%),
-    radial-gradient(ellipse 60% 50% at 80% 80%, oklch(0.78 0.14 75 / 0.09) 0%, transparent 55%),
-    radial-gradient(ellipse 40% 40% at 60% 30%, oklch(0.62 0.17 145 / 0.07) 0%, transparent 50%);
+    radial-gradient(ellipse 80% 60% at 20% 10%, oklch(0.58 0.18 222 / 0.10) 0%, transparent 60%),
+    radial-gradient(ellipse 60% 50% at 80% 80%, oklch(0.72 0.14 210 / 0.08) 0%, transparent 55%),
+    radial-gradient(ellipse 40% 40% at 60% 30%, oklch(0.85 0.1 218 / 0.12) 0%, transparent 50%);
+}
+
+/* Enter page sky gradient */
+.sky-gradient {
+  background: linear-gradient(
+    160deg,
+    oklch(0.55 0.2 222) 0%,
+    oklch(0.68 0.15 210) 40%,
+    oklch(0.82 0.1 215) 70%,
+    oklch(0.96 0.03 218) 100%
+  );
+}
+
+/* Floating cloud animation */
+@keyframes float-slow {
+  0%, 100% { transform: translateY(0px) translateX(0px); }
+  33% { transform: translateY(-18px) translateX(8px); }
+  66% { transform: translateY(-8px) translateX(-6px); }
+}
+@keyframes float-medium {
+  0%, 100% { transform: translateY(0px) translateX(0px); }
+  50% { transform: translateY(-14px) translateX(-10px); }
+}
+@keyframes float-fast {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-22px); }
+}
+@keyframes pulse-ring {
+  0% { transform: scale(0.9); opacity: 0.8; }
+  50% { transform: scale(1.05); opacity: 0.4; }
+  100% { transform: scale(0.9); opacity: 0.8; }
+}
+@keyframes shimmer-text {
+  0% { background-position: -200% center; }
+  100% { background-position: 200% center; }
+}
+.float-slow { animation: float-slow 7s ease-in-out infinite; }
+.float-medium { animation: float-medium 5s ease-in-out infinite; }
+.float-fast { animation: float-fast 4s ease-in-out infinite; }
+.pulse-ring { animation: pulse-ring 3s ease-in-out infinite; }
+.shimmer-text {
+  background: linear-gradient(90deg, #fff 0%, oklch(0.9 0.05 218) 30%, #fff 50%, oklch(0.9 0.05 218) 70%, #fff 100%);
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: shimmer-text 4s linear infinite;
 }

@@ -10,15 +10,20 @@ import {
   GraduationCap,
   RotateCcw,
   Search,
+  ShieldCheck,
   XCircle,
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
-import { useState } from "react";
-import { useStudentAttendanceSummary } from "../hooks/useQueries";
+import { useMemo, useState } from "react";
+import { useStudentAttendanceRecords } from "../hooks/useQueries";
+import { AttendanceStatus } from "../types/attendance";
+import { SUBJECTS, isValidRegNo } from "../utils/attendanceData";
 
 interface StudentLookupPageProps {
   onBack: () => void;
 }
+
+// ── Gauge component ───────────────────────────────────────────
 
 function AttendanceGauge({ percentage }: { percentage: number }) {
   const radius = 45;
@@ -66,56 +71,106 @@ function AttendanceGauge({ percentage }: { percentage: number }) {
   );
 }
 
-function AttendanceBadge({ percentage }: { percentage: number }) {
-  if (percentage >= 75) {
-    return (
-      <Badge className="bg-success/15 text-success-foreground border border-success/30 font-medium">
-        <CheckCircle2 className="w-3 h-3 mr-1" />
-        {percentage.toFixed(1)}%
-      </Badge>
-    );
-  }
-  if (percentage >= 60) {
-    return (
-      <Badge className="bg-warning/15 text-warning-foreground border border-warning/30 font-medium">
-        <AlertCircle className="w-3 h-3 mr-1" />
-        {percentage.toFixed(1)}%
-      </Badge>
-    );
-  }
-  return (
-    <Badge className="bg-destructive/15 text-destructive border border-destructive/30 font-medium">
-      <XCircle className="w-3 h-3 mr-1" />
-      {percentage.toFixed(1)}%
-    </Badge>
-  );
+// ── Per-subject stats type ────────────────────────────────────
+
+interface SubjectStats {
+  subjectId: string;
+  subjectName: string;
+  presentCount: number;
+  absentCount: number;
+  onDutyCount: number;
+  totalClasses: number;
+  percentage: number;
 }
+
+// ── Main page ─────────────────────────────────────────────────
 
 export default function StudentLookupPage({ onBack }: StudentLookupPageProps) {
   const [regInput, setRegInput] = useState("");
   const [submittedReg, setSubmittedReg] = useState<string | null>(null);
+  const [validationError, setValidationError] = useState<string | null>(null);
 
   const {
-    data: summary,
+    data: rawRecords,
     isLoading,
     isError,
-    error,
-  } = useStudentAttendanceSummary(submittedReg);
+  } = useStudentAttendanceRecords(submittedReg);
+
+  // ── Calculate per-subject stats from backend records ─────
+  const { subjectStats, overallPercentage } = useMemo(() => {
+    if (!submittedReg || !rawRecords) {
+      return { subjectStats: [], overallPercentage: 0 };
+    }
+
+    const stats: SubjectStats[] = SUBJECTS.map((subj) => {
+      const subjRecords = rawRecords.filter((r) => r.subjectId === subj.id);
+
+      // Backend now stores onDuty natively — read status directly
+      const presentCount = subjRecords.filter(
+        (r) => r.status === AttendanceStatus.present,
+      ).length;
+      const absentCount = subjRecords.filter(
+        (r) => r.status === AttendanceStatus.absent,
+      ).length;
+      const onDutyCount = subjRecords.filter(
+        (r) => r.status === AttendanceStatus.onDuty,
+      ).length;
+      const totalClasses = presentCount + absentCount + onDutyCount;
+
+      // Percentage = present / (present + absent), on-duty excluded
+      const denominator = presentCount + absentCount;
+      const percentage =
+        denominator === 0 ? 0 : (presentCount / denominator) * 100;
+
+      return {
+        subjectId: subj.id,
+        subjectName: subj.name,
+        presentCount,
+        absentCount,
+        onDutyCount,
+        totalClasses,
+        percentage,
+      };
+    });
+
+    // Only include subjects with at least one class recorded
+    const withData = stats.filter((s) => s.totalClasses > 0);
+
+    const totalPresent = withData.reduce((sum, s) => sum + s.presentCount, 0);
+    const totalAbsent = withData.reduce((sum, s) => sum + s.absentCount, 0);
+    const overallDenominator = totalPresent + totalAbsent;
+    const overall =
+      overallDenominator === 0 ? 0 : (totalPresent / overallDenominator) * 100;
+
+    return { subjectStats: withData, overallPercentage: overall };
+  }, [submittedReg, rawRecords]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const trimmed = regInput.trim().toUpperCase();
     if (!trimmed) return;
+
+    if (!isValidRegNo(trimmed)) {
+      setValidationError(
+        `"${trimmed}" is not a valid registration number. Valid range: 711625AM101 – 711625AM163.`,
+      );
+      return;
+    }
+
+    setValidationError(null);
     setSubmittedReg(trimmed);
   };
 
   const handleSearchAgain = () => {
     setSubmittedReg(null);
     setRegInput("");
+    setValidationError(null);
   };
 
-  const hasNoStudent =
-    !isLoading && submittedReg && (isError || (summary && !summary.name));
+  const hasNoRecords =
+    !isLoading && submittedReg && !isError && subjectStats.length === 0;
+  const showResults =
+    !isLoading && submittedReg && !isError && subjectStats.length > 0;
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
@@ -124,6 +179,7 @@ export default function StudentLookupPage({ onBack }: StudentLookupPageProps) {
         <Button
           variant="ghost"
           size="icon"
+          data-ocid="student.back_button"
           onClick={onBack}
           className="shrink-0 rounded-lg"
           aria-label="Go back"
@@ -140,7 +196,7 @@ export default function StudentLookupPage({ onBack }: StudentLookupPageProps) {
 
       <main className="flex-1 w-full max-w-2xl mx-auto px-4 py-8">
         <AnimatePresence mode="wait">
-          {/* Search form — show when no submitted reg or when we have results and want to search again */}
+          {/* Search form */}
           {!submittedReg && (
             <motion.div
               key="search"
@@ -155,11 +211,14 @@ export default function StudentLookupPage({ onBack }: StudentLookupPageProps) {
                   <Search className="w-7 h-7 text-primary" />
                 </div>
                 <h1 className="font-display text-3xl font-bold text-foreground mb-2">
-                  Find Your Attendance
+                  Check Attendance
                 </h1>
                 <p className="text-muted-foreground text-sm">
-                  Enter your registration number to view attendance records
-                  across all subjects.
+                  Enter your registration number to view your attendance records
+                  across all 6 subjects.
+                </p>
+                <p className="text-muted-foreground/70 text-xs mt-1">
+                  Batch: 711625AM101 – 711625AM163
                 </p>
               </div>
 
@@ -172,15 +231,31 @@ export default function StudentLookupPage({ onBack }: StudentLookupPageProps) {
                     id="reg-input"
                     data-ocid="student.reg_input"
                     value={regInput}
-                    onChange={(e) => setRegInput(e.target.value)}
-                    placeholder="e.g. CS2021001"
+                    onChange={(e) => {
+                      setRegInput(e.target.value);
+                      setValidationError(null);
+                    }}
+                    placeholder="e.g. 711625AM101"
                     autoFocus
                     autoComplete="off"
-                    className="h-12 text-base rounded-xl border-border bg-card shadow-xs focus-visible:ring-primary"
+                    className={`h-12 text-base rounded-xl border-border bg-card shadow-xs focus-visible:ring-primary font-mono tracking-wide ${
+                      validationError
+                        ? "border-destructive focus-visible:ring-destructive"
+                        : ""
+                    }`}
                   />
-                  <p className="text-muted-foreground text-xs">
-                    Registration number is case-insensitive.
-                  </p>
+                  {validationError ? (
+                    <p
+                      data-ocid="student.reg_error"
+                      className="text-destructive text-xs font-medium"
+                    >
+                      {validationError}
+                    </p>
+                  ) : (
+                    <p className="text-muted-foreground text-xs">
+                      Format: 711625AM followed by 3 digits (101–163)
+                    </p>
+                  )}
                 </div>
                 <Button
                   type="submit"
@@ -223,8 +298,8 @@ export default function StudentLookupPage({ onBack }: StudentLookupPageProps) {
                     <Skeleton className="h-5 w-32" />
                     <Skeleton className="h-6 w-16 rounded-full" />
                   </div>
-                  <div className="mt-3 grid grid-cols-3 gap-2">
-                    {[1, 2, 3].map((j) => (
+                  <div className="mt-3 grid grid-cols-4 gap-2">
+                    {[1, 2, 3, 4].map((j) => (
                       <Skeleton key={j} className="h-12 rounded-lg" />
                     ))}
                   </div>
@@ -233,8 +308,8 @@ export default function StudentLookupPage({ onBack }: StudentLookupPageProps) {
             </motion.div>
           )}
 
-          {/* Error / not found */}
-          {hasNoStudent && (
+          {/* Error state */}
+          {submittedReg && isError && (
             <motion.div
               key="error"
               initial={{ opacity: 0, y: 16 }}
@@ -248,18 +323,15 @@ export default function StudentLookupPage({ onBack }: StudentLookupPageProps) {
               </div>
               <div>
                 <h2 className="font-display text-xl font-bold text-foreground mb-1">
-                  Student Not Found
+                  Error Loading Records
                 </h2>
                 <p className="text-muted-foreground text-sm max-w-xs">
-                  No student found with registration number{" "}
-                  <strong className="text-foreground">{submittedReg}</strong>.
-                  Please check the number and try again.
+                  Could not fetch records for{" "}
+                  <strong className="text-foreground font-mono">
+                    {submittedReg}
+                  </strong>
+                  . Please try again.
                 </p>
-                {isError && (
-                  <p className="text-destructive text-xs mt-1 opacity-70">
-                    {(error as Error)?.message || "An error occurred."}
-                  </p>
-                )}
               </div>
               <Button
                 variant="outline"
@@ -272,8 +344,44 @@ export default function StudentLookupPage({ onBack }: StudentLookupPageProps) {
             </motion.div>
           )}
 
+          {/* No records found */}
+          {hasNoRecords && (
+            <motion.div
+              key="no-records"
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -16 }}
+              data-ocid="student.empty_state"
+              className="flex flex-col items-center justify-center gap-5 py-16 text-center"
+            >
+              <div className="w-16 h-16 rounded-2xl bg-muted flex items-center justify-center">
+                <Search className="w-8 h-8 text-muted-foreground/60" />
+              </div>
+              <div>
+                <h2 className="font-display text-xl font-bold text-foreground mb-1">
+                  No Records Yet
+                </h2>
+                <p className="text-muted-foreground text-sm max-w-xs">
+                  No attendance has been recorded for{" "}
+                  <strong className="text-foreground font-mono">
+                    {submittedReg}
+                  </strong>{" "}
+                  yet.
+                </p>
+              </div>
+              <Button
+                variant="outline"
+                onClick={handleSearchAgain}
+                className="rounded-xl"
+              >
+                <RotateCcw className="w-4 h-4 mr-2" />
+                Search Again
+              </Button>
+            </motion.div>
+          )}
+
           {/* Results */}
-          {submittedReg && !isLoading && summary && summary.name && (
+          {showResults && (
             <motion.div
               key="results"
               initial={{ opacity: 0, y: 16 }}
@@ -283,39 +391,43 @@ export default function StudentLookupPage({ onBack }: StudentLookupPageProps) {
               data-ocid="student.result_panel"
               className="space-y-5"
             >
-              {/* Student hero card */}
+              {/* Hero card */}
               <div className="bg-primary rounded-2xl p-6 text-primary-foreground shadow-elevated">
                 <div className="flex flex-col sm:flex-row items-center gap-6">
                   <div className="shrink-0">
-                    <AttendanceGauge percentage={summary.overallPercentage} />
+                    <AttendanceGauge percentage={overallPercentage} />
                   </div>
                   <div className="text-center sm:text-left">
-                    <p className="text-primary-foreground/70 text-xs font-medium uppercase tracking-widest mb-1">
-                      {summary.regNo}
+                    <p className="text-primary-foreground/70 text-xs font-mono font-medium uppercase tracking-widest mb-1">
+                      {submittedReg}
                     </p>
-                    <h2 className="font-display text-2xl font-bold text-primary-foreground mb-2">
-                      {summary.name}
+                    <h2 className="font-display text-2xl font-bold text-primary-foreground mb-1">
+                      Attendance Summary
                     </h2>
-                    <p className="text-primary-foreground/75 text-sm">
-                      Overall attendance across{" "}
-                      {summary.subjectSummaries.length} subject
-                      {summary.subjectSummaries.length !== 1 ? "s" : ""}
+                    <p className="text-primary-foreground/75 text-sm mb-3">
+                      {subjectStats.length} subject
+                      {subjectStats.length !== 1 ? "s" : ""} with records
                     </p>
-                    <div className="mt-3 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-white/15 text-primary-foreground">
-                      {summary.overallPercentage >= 75 ? (
+                    <div
+                      className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold ${
+                        overallPercentage >= 75
+                          ? "bg-white/20 text-primary-foreground"
+                          : overallPercentage >= 60
+                            ? "bg-warning/30 text-primary-foreground"
+                            : "bg-destructive/30 text-primary-foreground"
+                      }`}
+                    >
+                      {overallPercentage >= 75 ? (
                         <>
-                          <CheckCircle2 className="w-3.5 h-3.5" /> Attendance
-                          Eligible
+                          <CheckCircle2 className="w-3.5 h-3.5" /> Eligible
                         </>
-                      ) : summary.overallPercentage >= 60 ? (
+                      ) : overallPercentage >= 60 ? (
                         <>
-                          <AlertCircle className="w-3.5 h-3.5" /> Borderline —
-                          Needs Improvement
+                          <AlertCircle className="w-3.5 h-3.5" /> Borderline
                         </>
                       ) : (
                         <>
-                          <XCircle className="w-3.5 h-3.5" /> Below Required
-                          Threshold
+                          <XCircle className="w-3.5 h-3.5" /> Below Threshold
                         </>
                       )}
                     </div>
@@ -323,20 +435,40 @@ export default function StudentLookupPage({ onBack }: StudentLookupPageProps) {
                 </div>
               </div>
 
-              {/* Subject cards */}
-              <div className="space-y-3">
-                <h3 className="font-display text-lg font-semibold text-foreground px-1">
+              {/* Legend */}
+              <div className="flex items-center gap-4 px-1 flex-wrap text-xs text-muted-foreground">
+                <span className="flex items-center gap-1.5">
+                  <span className="w-3 h-3 rounded-full bg-success/70 inline-block" />
+                  Present (P)
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <span className="w-3 h-3 rounded-full bg-destructive/70 inline-block" />
+                  Absent (A)
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <span className="w-3 h-3 rounded-full bg-onduty/70 inline-block" />
+                  On-Duty (OD) — not counted in %
+                </span>
+              </div>
+
+              {/* Subject-wise table */}
+              <div>
+                <h3 className="font-display text-lg font-semibold text-foreground px-1 mb-3">
                   Subject-wise Breakdown
                 </h3>
-                {summary.subjectSummaries.length === 0 ? (
-                  <div
-                    data-ocid="student.empty_state"
-                    className="bg-card rounded-xl border border-border p-8 text-center text-muted-foreground"
-                  >
-                    No subject records found.
+
+                <div className="bg-card border border-border rounded-xl overflow-hidden shadow-xs">
+                  {/* Table header */}
+                  <div className="grid grid-cols-6 gap-2 px-4 py-2.5 bg-muted/40 border-b border-border text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">
+                    <div className="col-span-2">Subject</div>
+                    <div className="text-center">P</div>
+                    <div className="text-center">A</div>
+                    <div className="text-center">OD</div>
+                    <div className="text-center">%</div>
                   </div>
-                ) : (
-                  summary.subjectSummaries.map((subj, i) => {
+
+                  {/* Rows */}
+                  {subjectStats.map((subj, i) => {
                     const pct = subj.percentage;
                     const barColor =
                       pct >= 75
@@ -347,72 +479,159 @@ export default function StudentLookupPage({ onBack }: StudentLookupPageProps) {
 
                     return (
                       <motion.div
-                        key={subj.subjectName}
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
+                        key={subj.subjectId}
+                        data-ocid={`student.subject_row.${i + 1}`}
+                        initial={{ opacity: 0, x: -8 }}
+                        animate={{ opacity: 1, x: 0 }}
                         transition={{ delay: i * 0.06 }}
-                        className="bg-card rounded-xl border border-border p-4 shadow-xs"
+                        className="border-b border-border last:border-b-0"
                       >
-                        <div className="flex items-start justify-between gap-3 mb-3">
-                          <h4 className="font-medium text-foreground text-sm leading-snug">
-                            {subj.subjectName}
-                          </h4>
-                          <AttendanceBadge percentage={pct} />
-                        </div>
-
-                        {/* Progress bar */}
-                        <div className="mb-3 h-2 bg-muted rounded-full overflow-hidden">
-                          <motion.div
-                            initial={{ width: 0 }}
-                            animate={{ width: `${Math.min(100, pct)}%` }}
-                            transition={{
-                              duration: 0.8,
-                              delay: i * 0.06 + 0.2,
-                              ease: "easeOut",
-                            }}
-                            className={`h-full rounded-full ${barColor}`}
-                          />
-                        </div>
-
-                        {/* Stats grid */}
-                        <div className="grid grid-cols-3 gap-2 text-center">
-                          <div className="bg-success/10 rounded-lg py-2 px-1">
-                            <div className="font-display text-lg font-bold text-success-foreground">
-                              {subj.presentCount.toString()}
-                            </div>
-                            <div className="text-[10px] text-muted-foreground font-medium uppercase tracking-wide">
-                              Present
+                        <div className="grid grid-cols-6 gap-2 px-4 py-3 items-center">
+                          <div className="col-span-2">
+                            <p className="text-sm font-medium text-foreground leading-snug">
+                              {subj.subjectName}
+                            </p>
+                            <div className="mt-1.5 h-1.5 bg-muted rounded-full overflow-hidden">
+                              <motion.div
+                                initial={{ width: 0 }}
+                                animate={{
+                                  width: `${Math.min(100, pct)}%`,
+                                }}
+                                transition={{
+                                  duration: 0.8,
+                                  delay: i * 0.06 + 0.2,
+                                  ease: "easeOut",
+                                }}
+                                className={`h-full rounded-full ${barColor}`}
+                              />
                             </div>
                           </div>
-                          <div className="bg-destructive/10 rounded-lg py-2 px-1">
-                            <div className="font-display text-lg font-bold text-destructive">
-                              {subj.absentCount.toString()}
-                            </div>
-                            <div className="text-[10px] text-muted-foreground font-medium uppercase tracking-wide">
-                              Absent
-                            </div>
+                          <div className="text-center">
+                            <span className="text-sm font-semibold text-success-foreground">
+                              {subj.presentCount}
+                            </span>
                           </div>
-                          <div className="bg-muted rounded-lg py-2 px-1">
-                            <div className="font-display text-lg font-bold text-foreground">
-                              {subj.totalClasses.toString()}
-                            </div>
-                            <div className="text-[10px] text-muted-foreground font-medium uppercase tracking-wide">
-                              Total
-                            </div>
+                          <div className="text-center">
+                            <span className="text-sm font-semibold text-destructive">
+                              {subj.absentCount}
+                            </span>
+                          </div>
+                          <div className="text-center">
+                            <span className="text-sm font-semibold text-onduty-foreground">
+                              {subj.onDutyCount}
+                            </span>
+                          </div>
+                          <div className="text-center">
+                            {pct >= 75 ? (
+                              <Badge className="bg-success/15 text-success-foreground border border-success/20 text-xs px-1.5 py-0.5">
+                                {pct.toFixed(0)}%
+                              </Badge>
+                            ) : pct >= 60 ? (
+                              <Badge className="bg-warning/15 text-warning-foreground border border-warning/20 text-xs px-1.5 py-0.5">
+                                {pct.toFixed(0)}%
+                              </Badge>
+                            ) : (
+                              <Badge className="bg-destructive/15 text-destructive border border-destructive/20 text-xs px-1.5 py-0.5">
+                                {pct.toFixed(0)}%
+                              </Badge>
+                            )}
                           </div>
                         </div>
                       </motion.div>
                     );
-                  })
-                )}
+                  })}
+
+                  {/* Overall total row */}
+                  <div className="grid grid-cols-6 gap-2 px-4 py-3 bg-muted/30 border-t-2 border-border items-center">
+                    <div className="col-span-2">
+                      <p className="text-sm font-bold text-foreground">
+                        Overall
+                      </p>
+                    </div>
+                    <div className="text-center">
+                      <span className="text-sm font-bold text-success-foreground">
+                        {subjectStats.reduce((s, r) => s + r.presentCount, 0)}
+                      </span>
+                    </div>
+                    <div className="text-center">
+                      <span className="text-sm font-bold text-destructive">
+                        {subjectStats.reduce((s, r) => s + r.absentCount, 0)}
+                      </span>
+                    </div>
+                    <div className="text-center">
+                      <span className="text-sm font-bold text-onduty-foreground">
+                        {subjectStats.reduce((s, r) => s + r.onDutyCount, 0)}
+                      </span>
+                    </div>
+                    <div className="text-center">
+                      {overallPercentage >= 75 ? (
+                        <Badge className="bg-success/20 text-success-foreground border border-success/30 font-bold text-xs px-1.5 py-0.5">
+                          {overallPercentage.toFixed(0)}%
+                        </Badge>
+                      ) : overallPercentage >= 60 ? (
+                        <Badge className="bg-warning/20 text-warning-foreground border border-warning/30 font-bold text-xs px-1.5 py-0.5">
+                          {overallPercentage.toFixed(0)}%
+                        </Badge>
+                      ) : (
+                        <Badge className="bg-destructive/20 text-destructive border border-destructive/30 font-bold text-xs px-1.5 py-0.5">
+                          {overallPercentage.toFixed(0)}%
+                        </Badge>
+                      )}
+                    </div>
+                  </div>
+                </div>
               </div>
 
-              {/* Search again button */}
+              {/* Eligibility note */}
+              <div
+                className={`rounded-xl p-4 text-sm flex items-start gap-3 border ${
+                  overallPercentage >= 75
+                    ? "bg-success/10 border-success/20 text-success-foreground"
+                    : overallPercentage >= 60
+                      ? "bg-warning/10 border-warning/20 text-warning-foreground"
+                      : "bg-destructive/10 border-destructive/20 text-destructive"
+                }`}
+              >
+                {overallPercentage >= 75 ? (
+                  <CheckCircle2 className="w-5 h-5 mt-0.5 shrink-0" />
+                ) : overallPercentage >= 60 ? (
+                  <AlertCircle className="w-5 h-5 mt-0.5 shrink-0" />
+                ) : (
+                  <XCircle className="w-5 h-5 mt-0.5 shrink-0" />
+                )}
+                <div>
+                  <p className="font-semibold">
+                    {overallPercentage >= 75
+                      ? "Attendance Eligible"
+                      : overallPercentage >= 60
+                        ? "Borderline — Improvement Needed"
+                        : "Below Required Threshold (75%)"}
+                  </p>
+                  <p className="text-xs opacity-80 mt-0.5">
+                    {overallPercentage >= 75
+                      ? "Your attendance meets the 75% requirement."
+                      : overallPercentage >= 60
+                        ? "You are close to the minimum requirement. Attend more classes."
+                        : "Your attendance is below 75%. You may not be eligible for exams."}
+                  </p>
+                </div>
+              </div>
+
+              {/* On-duty note */}
+              <div className="rounded-xl p-3 bg-onduty/8 border border-onduty/20 flex items-center gap-2.5 text-xs text-onduty-foreground">
+                <ShieldCheck className="w-4 h-4 shrink-0" />
+                <span>
+                  On-Duty days are shown separately and are{" "}
+                  <strong>not counted</strong> in your attendance percentage.
+                </span>
+              </div>
+
+              {/* Search again */}
               <Button
                 variant="outline"
                 data-ocid="student.search_again_button"
                 onClick={handleSearchAgain}
-                className="w-full h-11 rounded-xl border-border mt-2"
+                className="w-full h-11 rounded-xl border-border"
               >
                 <RotateCcw className="w-4 h-4 mr-2" />
                 Search Another Student

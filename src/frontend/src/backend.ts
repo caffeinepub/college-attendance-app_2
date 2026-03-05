@@ -89,269 +89,128 @@ export class ExternalBlob {
         return this;
     }
 }
-export interface OverallAttendanceSummary {
-    name: string;
-    overallPercentage: number;
-    subjectSummaries: Array<StudentAttendanceSummary>;
-    regNo: RegistrationNumber;
+export interface UserProfile {
+    username: string;
+    role: string;
 }
-export type RegistrationNumber = string;
-export type SessionToken = string;
-export interface StudentAttendanceSummary {
-    totalClasses: bigint;
-    subjectName: string;
-    presentCount: bigint;
-    absentCount: bigint;
-    percentage: number;
-}
-export interface AttendanceInput {
-    status: AttendanceStatus;
-    regNo: RegistrationNumber;
-}
-export interface AttendanceRecord {
-    status: AttendanceStatus;
-    date: string;
-    staffUsername: string;
-    subjectId: SubjectId;
-    regNo: RegistrationNumber;
-}
-export type SubjectId = string;
-export interface Subject {
-    id: SubjectId;
-    name: string;
-}
-export interface Student {
-    name: string;
-    registrationNumber: RegistrationNumber;
-}
-export enum AttendanceStatus {
-    present = "present",
-    absent = "absent"
+export enum UserRole {
+    admin = "admin",
+    user = "user",
+    guest = "guest"
 }
 export interface backendInterface {
-    getAttendanceByStaff(token: SessionToken): Promise<Array<AttendanceRecord>>;
-    getStudentAttendanceRecords(regNo: RegistrationNumber): Promise<Array<AttendanceRecord>>;
-    getStudentAttendanceSummary(regNo: RegistrationNumber): Promise<OverallAttendanceSummary>;
-    getStudents(): Promise<Array<Student>>;
-    getSubjects(): Promise<Array<Subject>>;
-    initiateSeedData(): Promise<void>;
-    login(username: string, password: string): Promise<SessionToken>;
-    logout(token: SessionToken): Promise<void>;
-    markAttendance(token: SessionToken, subjectId: SubjectId, date: string, attendanceList: Array<AttendanceInput>): Promise<void>;
-    resetAttendanceData(): Promise<void>;
+    _initializeAccessControlWithSecret(userSecret: string): Promise<void>;
+    assignCallerUserRole(user: Principal, role: UserRole): Promise<void>;
+    getCallerUserProfile(): Promise<UserProfile | null>;
+    getCallerUserRole(): Promise<UserRole>;
+    isCallerAdmin(): Promise<boolean>;
 }
-import type { AttendanceInput as _AttendanceInput, AttendanceRecord as _AttendanceRecord, AttendanceStatus as _AttendanceStatus, RegistrationNumber as _RegistrationNumber, SubjectId as _SubjectId } from "./declarations/backend.did.d.ts";
+import type { UserProfile as _UserProfile, UserRole as _UserRole } from "./declarations/backend.did.d.ts";
 export class Backend implements backendInterface {
     constructor(private actor: ActorSubclass<_SERVICE>, private _uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, private _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, private processError?: (error: unknown) => never){}
-    async getAttendanceByStaff(arg0: SessionToken): Promise<Array<AttendanceRecord>> {
+    async _initializeAccessControlWithSecret(arg0: string): Promise<void> {
         if (this.processError) {
             try {
-                const result = await this.actor.getAttendanceByStaff(arg0);
-                return from_candid_vec_n1(this._uploadFile, this._downloadFile, result);
-            } catch (e) {
-                this.processError(e);
-                throw new Error("unreachable");
-            }
-        } else {
-            const result = await this.actor.getAttendanceByStaff(arg0);
-            return from_candid_vec_n1(this._uploadFile, this._downloadFile, result);
-        }
-    }
-    async getStudentAttendanceRecords(arg0: RegistrationNumber): Promise<Array<AttendanceRecord>> {
-        if (this.processError) {
-            try {
-                const result = await this.actor.getStudentAttendanceRecords(arg0);
-                return from_candid_vec_n1(this._uploadFile, this._downloadFile, result);
-            } catch (e) {
-                this.processError(e);
-                throw new Error("unreachable");
-            }
-        } else {
-            const result = await this.actor.getStudentAttendanceRecords(arg0);
-            return from_candid_vec_n1(this._uploadFile, this._downloadFile, result);
-        }
-    }
-    async getStudentAttendanceSummary(arg0: RegistrationNumber): Promise<OverallAttendanceSummary> {
-        if (this.processError) {
-            try {
-                const result = await this.actor.getStudentAttendanceSummary(arg0);
+                const result = await this.actor._initializeAccessControlWithSecret(arg0);
                 return result;
             } catch (e) {
                 this.processError(e);
                 throw new Error("unreachable");
             }
         } else {
-            const result = await this.actor.getStudentAttendanceSummary(arg0);
+            const result = await this.actor._initializeAccessControlWithSecret(arg0);
             return result;
         }
     }
-    async getStudents(): Promise<Array<Student>> {
+    async assignCallerUserRole(arg0: Principal, arg1: UserRole): Promise<void> {
         if (this.processError) {
             try {
-                const result = await this.actor.getStudents();
+                const result = await this.actor.assignCallerUserRole(arg0, to_candid_UserRole_n1(this._uploadFile, this._downloadFile, arg1));
                 return result;
             } catch (e) {
                 this.processError(e);
                 throw new Error("unreachable");
             }
         } else {
-            const result = await this.actor.getStudents();
+            const result = await this.actor.assignCallerUserRole(arg0, to_candid_UserRole_n1(this._uploadFile, this._downloadFile, arg1));
             return result;
         }
     }
-    async getSubjects(): Promise<Array<Subject>> {
+    async getCallerUserProfile(): Promise<UserProfile | null> {
         if (this.processError) {
             try {
-                const result = await this.actor.getSubjects();
-                return result;
+                const result = await this.actor.getCallerUserProfile();
+                return from_candid_opt_n3(this._uploadFile, this._downloadFile, result);
             } catch (e) {
                 this.processError(e);
                 throw new Error("unreachable");
             }
         } else {
-            const result = await this.actor.getSubjects();
-            return result;
+            const result = await this.actor.getCallerUserProfile();
+            return from_candid_opt_n3(this._uploadFile, this._downloadFile, result);
         }
     }
-    async initiateSeedData(): Promise<void> {
+    async getCallerUserRole(): Promise<UserRole> {
         if (this.processError) {
             try {
-                const result = await this.actor.initiateSeedData();
-                return result;
+                const result = await this.actor.getCallerUserRole();
+                return from_candid_UserRole_n4(this._uploadFile, this._downloadFile, result);
             } catch (e) {
                 this.processError(e);
                 throw new Error("unreachable");
             }
         } else {
-            const result = await this.actor.initiateSeedData();
-            return result;
+            const result = await this.actor.getCallerUserRole();
+            return from_candid_UserRole_n4(this._uploadFile, this._downloadFile, result);
         }
     }
-    async login(arg0: string, arg1: string): Promise<SessionToken> {
+    async isCallerAdmin(): Promise<boolean> {
         if (this.processError) {
             try {
-                const result = await this.actor.login(arg0, arg1);
+                const result = await this.actor.isCallerAdmin();
                 return result;
             } catch (e) {
                 this.processError(e);
                 throw new Error("unreachable");
             }
         } else {
-            const result = await this.actor.login(arg0, arg1);
-            return result;
-        }
-    }
-    async logout(arg0: SessionToken): Promise<void> {
-        if (this.processError) {
-            try {
-                const result = await this.actor.logout(arg0);
-                return result;
-            } catch (e) {
-                this.processError(e);
-                throw new Error("unreachable");
-            }
-        } else {
-            const result = await this.actor.logout(arg0);
-            return result;
-        }
-    }
-    async markAttendance(arg0: SessionToken, arg1: SubjectId, arg2: string, arg3: Array<AttendanceInput>): Promise<void> {
-        if (this.processError) {
-            try {
-                const result = await this.actor.markAttendance(arg0, arg1, arg2, to_candid_vec_n6(this._uploadFile, this._downloadFile, arg3));
-                return result;
-            } catch (e) {
-                this.processError(e);
-                throw new Error("unreachable");
-            }
-        } else {
-            const result = await this.actor.markAttendance(arg0, arg1, arg2, to_candid_vec_n6(this._uploadFile, this._downloadFile, arg3));
-            return result;
-        }
-    }
-    async resetAttendanceData(): Promise<void> {
-        if (this.processError) {
-            try {
-                const result = await this.actor.resetAttendanceData();
-                return result;
-            } catch (e) {
-                this.processError(e);
-                throw new Error("unreachable");
-            }
-        } else {
-            const result = await this.actor.resetAttendanceData();
+            const result = await this.actor.isCallerAdmin();
             return result;
         }
     }
 }
-function from_candid_AttendanceRecord_n2(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: _AttendanceRecord): AttendanceRecord {
-    return from_candid_record_n3(_uploadFile, _downloadFile, value);
-}
-function from_candid_AttendanceStatus_n4(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: _AttendanceStatus): AttendanceStatus {
+function from_candid_UserRole_n4(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: _UserRole): UserRole {
     return from_candid_variant_n5(_uploadFile, _downloadFile, value);
 }
-function from_candid_record_n3(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
-    status: _AttendanceStatus;
-    date: string;
-    staffUsername: string;
-    subjectId: _SubjectId;
-    regNo: _RegistrationNumber;
-}): {
-    status: AttendanceStatus;
-    date: string;
-    staffUsername: string;
-    subjectId: SubjectId;
-    regNo: RegistrationNumber;
-} {
-    return {
-        status: from_candid_AttendanceStatus_n4(_uploadFile, _downloadFile, value.status),
-        date: value.date,
-        staffUsername: value.staffUsername,
-        subjectId: value.subjectId,
-        regNo: value.regNo
-    };
+function from_candid_opt_n3(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: [] | [_UserProfile]): UserProfile | null {
+    return value.length === 0 ? null : value[0];
 }
 function from_candid_variant_n5(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
-    present: null;
+    admin: null;
 } | {
-    absent: null;
-}): AttendanceStatus {
-    return "present" in value ? AttendanceStatus.present : "absent" in value ? AttendanceStatus.absent : value;
-}
-function from_candid_vec_n1(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: Array<_AttendanceRecord>): Array<AttendanceRecord> {
-    return value.map((x)=>from_candid_AttendanceRecord_n2(_uploadFile, _downloadFile, x));
-}
-function to_candid_AttendanceInput_n7(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: AttendanceInput): _AttendanceInput {
-    return to_candid_record_n8(_uploadFile, _downloadFile, value);
-}
-function to_candid_AttendanceStatus_n9(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: AttendanceStatus): _AttendanceStatus {
-    return to_candid_variant_n10(_uploadFile, _downloadFile, value);
-}
-function to_candid_record_n8(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
-    status: AttendanceStatus;
-    regNo: RegistrationNumber;
-}): {
-    status: _AttendanceStatus;
-    regNo: _RegistrationNumber;
-} {
-    return {
-        status: to_candid_AttendanceStatus_n9(_uploadFile, _downloadFile, value.status),
-        regNo: value.regNo
-    };
-}
-function to_candid_variant_n10(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: AttendanceStatus): {
-    present: null;
+    user: null;
 } | {
-    absent: null;
+    guest: null;
+}): UserRole {
+    return "admin" in value ? UserRole.admin : "user" in value ? UserRole.user : "guest" in value ? UserRole.guest : value;
+}
+function to_candid_UserRole_n1(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: UserRole): _UserRole {
+    return to_candid_variant_n2(_uploadFile, _downloadFile, value);
+}
+function to_candid_variant_n2(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: UserRole): {
+    admin: null;
+} | {
+    user: null;
+} | {
+    guest: null;
 } {
-    return value == AttendanceStatus.present ? {
-        present: null
-    } : value == AttendanceStatus.absent ? {
-        absent: null
+    return value == UserRole.admin ? {
+        admin: null
+    } : value == UserRole.user ? {
+        user: null
+    } : value == UserRole.guest ? {
+        guest: null
     } : value;
-}
-function to_candid_vec_n6(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: Array<AttendanceInput>): Array<_AttendanceInput> {
-    return value.map((x)=>to_candid_AttendanceInput_n7(_uploadFile, _downloadFile, x));
 }
 export interface CreateActorOptions {
     agent?: Agent;

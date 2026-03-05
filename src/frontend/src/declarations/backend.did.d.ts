@@ -10,60 +10,16 @@ import type { ActorMethod } from '@icp-sdk/core/agent';
 import type { IDL } from '@icp-sdk/core/candid';
 import type { Principal } from '@icp-sdk/core/principal';
 
-export interface AttendanceInput {
-  'status' : AttendanceStatus,
-  'regNo' : RegistrationNumber,
-}
-export interface AttendanceRecord {
-  'status' : AttendanceStatus,
-  'date' : string,
-  'staffUsername' : string,
-  'subjectId' : SubjectId,
-  'regNo' : RegistrationNumber,
-}
-export type AttendanceStatus = { 'present' : null } |
-  { 'absent' : null };
-export interface OverallAttendanceSummary {
-  'name' : string,
-  'overallPercentage' : number,
-  'subjectSummaries' : Array<StudentAttendanceSummary>,
-  'regNo' : RegistrationNumber,
-}
-export type RegistrationNumber = string;
-export type SessionToken = string;
-export interface Student {
-  'name' : string,
-  'registrationNumber' : RegistrationNumber,
-}
-export interface StudentAttendanceSummary {
-  'totalClasses' : bigint,
-  'subjectName' : string,
-  'presentCount' : bigint,
-  'absentCount' : bigint,
-  'percentage' : number,
-}
-export interface Subject { 'id' : SubjectId, 'name' : string }
-export type SubjectId = string;
+export interface UserProfile { 'username' : string, 'role' : string }
+export type UserRole = { 'admin' : null } |
+  { 'user' : null } |
+  { 'guest' : null };
 export interface _SERVICE {
-  'getAttendanceByStaff' : ActorMethod<[SessionToken], Array<AttendanceRecord>>,
-  'getStudentAttendanceRecords' : ActorMethod<
-    [RegistrationNumber],
-    Array<AttendanceRecord>
-  >,
-  'getStudentAttendanceSummary' : ActorMethod<
-    [RegistrationNumber],
-    OverallAttendanceSummary
-  >,
-  'getStudents' : ActorMethod<[], Array<Student>>,
-  'getSubjects' : ActorMethod<[], Array<Subject>>,
-  'initiateSeedData' : ActorMethod<[], undefined>,
-  'login' : ActorMethod<[string, string], SessionToken>,
-  'logout' : ActorMethod<[SessionToken], undefined>,
-  'markAttendance' : ActorMethod<
-    [SessionToken, SubjectId, string, Array<AttendanceInput>],
-    undefined
-  >,
-  'resetAttendanceData' : ActorMethod<[], undefined>,
+  '_initializeAccessControlWithSecret' : ActorMethod<[string], undefined>,
+  'assignCallerUserRole' : ActorMethod<[Principal, UserRole], undefined>,
+  'getCallerUserProfile' : ActorMethod<[], [] | [UserProfile]>,
+  'getCallerUserRole' : ActorMethod<[], UserRole>,
+  'isCallerAdmin' : ActorMethod<[], boolean>,
 }
 export declare const idlService: IDL.ServiceClass;
 export declare const idlInitArgs: IDL.Type[];

@@ -3,12 +3,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   ArrowLeft,
-  Eye,
-  EyeOff,
   GraduationCap,
+  KeyRound,
   Loader2,
   Lock,
-  User,
 } from "lucide-react";
 import { motion } from "motion/react";
 import { useState } from "react";
@@ -24,28 +22,28 @@ export default function StaffLoginPage({
   onLogin,
   onBack,
 }: StaffLoginPageProps) {
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
+  const [pin, setPin] = useState("");
+  const [hasError, setHasError] = useState(false);
 
   const { mutate: login, isPending } = useLogin();
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!username.trim() || !password.trim()) return;
+    const trimmed = pin.trim();
+    if (!trimmed) return;
 
+    setHasError(false);
     login(
-      { username: username.trim(), password },
+      { username: "staff", password: trimmed },
       {
         onSuccess: (token) => {
           toast.success("Logged in successfully");
           onLogin(token);
         },
-        onError: (err) => {
-          toast.error("Login failed", {
-            description:
-              (err as Error)?.message ||
-              "Invalid username or password. Please try again.",
+        onError: () => {
+          setHasError(true);
+          toast.error("Invalid PIN", {
+            description: "Please enter the correct staff PIN to continue.",
           });
         },
       },
@@ -59,6 +57,7 @@ export default function StaffLoginPage({
         <Button
           variant="ghost"
           size="icon"
+          data-ocid="stafflogin.back_button"
           onClick={onBack}
           className="shrink-0 rounded-lg"
           aria-label="Go back"
@@ -78,7 +77,7 @@ export default function StaffLoginPage({
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4 }}
-          className="w-full max-w-md"
+          className="w-full max-w-sm"
         >
           {/* Header */}
           <div className="text-center mb-8">
@@ -89,7 +88,7 @@ export default function StaffLoginPage({
               Staff Login
             </h1>
             <p className="text-muted-foreground text-sm">
-              Sign in to manage student attendance records.
+              Enter your PIN to access the attendance portal.
             </p>
           </div>
 
@@ -97,86 +96,57 @@ export default function StaffLoginPage({
           <div className="bg-card border border-border rounded-2xl p-6 shadow-card">
             <form onSubmit={handleSubmit} className="space-y-5">
               <div className="space-y-2">
-                <Label htmlFor="username-input" className="text-sm font-medium">
-                  Username
+                <Label htmlFor="pin-input" className="text-sm font-medium">
+                  Staff PIN
                 </Label>
                 <div className="relative">
-                  <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                  <KeyRound className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                   <Input
-                    id="username-input"
-                    data-ocid="staff.username_input"
-                    value={username}
-                    onChange={(e) => setUsername(e.target.value)}
-                    placeholder="Enter your username"
-                    autoComplete="username"
-                    autoFocus
-                    className="pl-10 h-12 rounded-xl border-border bg-background focus-visible:ring-primary"
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="password-input" className="text-sm font-medium">
-                  Password
-                </Label>
-                <div className="relative">
-                  <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                  <Input
-                    id="password-input"
-                    data-ocid="staff.password_input"
-                    type={showPassword ? "text" : "password"}
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="Enter your password"
+                    id="pin-input"
+                    data-ocid="stafflogin.pin_input"
+                    type="password"
+                    inputMode="numeric"
+                    value={pin}
+                    onChange={(e) => {
+                      setPin(e.target.value);
+                      setHasError(false);
+                    }}
+                    placeholder="Enter PIN"
                     autoComplete="current-password"
-                    className="pl-10 pr-11 h-12 rounded-xl border-border bg-background focus-visible:ring-primary"
+                    autoFocus
+                    className={`pl-10 h-12 rounded-xl border-border bg-background focus-visible:ring-primary text-center text-lg tracking-[0.5em] ${
+                      hasError
+                        ? "border-destructive focus-visible:ring-destructive"
+                        : ""
+                    }`}
                   />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors p-0.5"
-                    aria-label={
-                      showPassword ? "Hide password" : "Show password"
-                    }
-                  >
-                    {showPassword ? (
-                      <EyeOff className="w-4 h-4" />
-                    ) : (
-                      <Eye className="w-4 h-4" />
-                    )}
-                  </button>
                 </div>
+                {hasError && (
+                  <p
+                    data-ocid="stafflogin.pin_error"
+                    className="text-destructive text-xs font-medium"
+                  >
+                    Invalid PIN. Please try again.
+                  </p>
+                )}
               </div>
 
               <Button
                 type="submit"
-                data-ocid="staff.login_button"
-                disabled={isPending || !username.trim() || !password.trim()}
+                data-ocid="stafflogin.submit_button"
+                disabled={isPending || !pin.trim()}
                 className="w-full h-12 rounded-xl text-base font-medium bg-primary hover:bg-primary/90 text-primary-foreground shadow-card mt-2"
               >
                 {isPending ? (
                   <>
                     <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    Signing in...
+                    Signing in…
                   </>
                 ) : (
                   "Sign In"
                 )}
               </Button>
             </form>
-
-            {/* Hint */}
-            <div className="mt-4 p-3 bg-muted/60 rounded-xl text-xs text-muted-foreground">
-              <p className="font-medium text-foreground mb-1">
-                Demo credentials:
-              </p>
-              <p>
-                Username:{" "}
-                <code className="bg-background px-1 rounded">staff1</code>,
-                Password:{" "}
-                <code className="bg-background px-1 rounded">pass123</code>
-              </p>
-            </div>
           </div>
         </motion.div>
       </main>

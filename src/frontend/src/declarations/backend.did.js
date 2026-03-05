@@ -8,139 +8,40 @@
 
 import { IDL } from '@icp-sdk/core/candid';
 
-export const SessionToken = IDL.Text;
-export const AttendanceStatus = IDL.Variant({
-  'present' : IDL.Null,
-  'absent' : IDL.Null,
+export const UserRole = IDL.Variant({
+  'admin' : IDL.Null,
+  'user' : IDL.Null,
+  'guest' : IDL.Null,
 });
-export const SubjectId = IDL.Text;
-export const RegistrationNumber = IDL.Text;
-export const AttendanceRecord = IDL.Record({
-  'status' : AttendanceStatus,
-  'date' : IDL.Text,
-  'staffUsername' : IDL.Text,
-  'subjectId' : SubjectId,
-  'regNo' : RegistrationNumber,
-});
-export const StudentAttendanceSummary = IDL.Record({
-  'totalClasses' : IDL.Nat,
-  'subjectName' : IDL.Text,
-  'presentCount' : IDL.Nat,
-  'absentCount' : IDL.Nat,
-  'percentage' : IDL.Float64,
-});
-export const OverallAttendanceSummary = IDL.Record({
-  'name' : IDL.Text,
-  'overallPercentage' : IDL.Float64,
-  'subjectSummaries' : IDL.Vec(StudentAttendanceSummary),
-  'regNo' : RegistrationNumber,
-});
-export const Student = IDL.Record({
-  'name' : IDL.Text,
-  'registrationNumber' : RegistrationNumber,
-});
-export const Subject = IDL.Record({ 'id' : SubjectId, 'name' : IDL.Text });
-export const AttendanceInput = IDL.Record({
-  'status' : AttendanceStatus,
-  'regNo' : RegistrationNumber,
+export const UserProfile = IDL.Record({
+  'username' : IDL.Text,
+  'role' : IDL.Text,
 });
 
 export const idlService = IDL.Service({
-  'getAttendanceByStaff' : IDL.Func(
-      [SessionToken],
-      [IDL.Vec(AttendanceRecord)],
-      ['query'],
-    ),
-  'getStudentAttendanceRecords' : IDL.Func(
-      [RegistrationNumber],
-      [IDL.Vec(AttendanceRecord)],
-      ['query'],
-    ),
-  'getStudentAttendanceSummary' : IDL.Func(
-      [RegistrationNumber],
-      [OverallAttendanceSummary],
-      ['query'],
-    ),
-  'getStudents' : IDL.Func([], [IDL.Vec(Student)], ['query']),
-  'getSubjects' : IDL.Func([], [IDL.Vec(Subject)], ['query']),
-  'initiateSeedData' : IDL.Func([], [], []),
-  'login' : IDL.Func([IDL.Text, IDL.Text], [SessionToken], ['query']),
-  'logout' : IDL.Func([SessionToken], [], []),
-  'markAttendance' : IDL.Func(
-      [SessionToken, SubjectId, IDL.Text, IDL.Vec(AttendanceInput)],
-      [],
-      [],
-    ),
-  'resetAttendanceData' : IDL.Func([], [], []),
+  '_initializeAccessControlWithSecret' : IDL.Func([IDL.Text], [], []),
+  'assignCallerUserRole' : IDL.Func([IDL.Principal, UserRole], [], []),
+  'getCallerUserProfile' : IDL.Func([], [IDL.Opt(UserProfile)], ['query']),
+  'getCallerUserRole' : IDL.Func([], [UserRole], ['query']),
+  'isCallerAdmin' : IDL.Func([], [IDL.Bool], ['query']),
 });
 
 export const idlInitArgs = [];
 
 export const idlFactory = ({ IDL }) => {
-  const SessionToken = IDL.Text;
-  const AttendanceStatus = IDL.Variant({
-    'present' : IDL.Null,
-    'absent' : IDL.Null,
+  const UserRole = IDL.Variant({
+    'admin' : IDL.Null,
+    'user' : IDL.Null,
+    'guest' : IDL.Null,
   });
-  const SubjectId = IDL.Text;
-  const RegistrationNumber = IDL.Text;
-  const AttendanceRecord = IDL.Record({
-    'status' : AttendanceStatus,
-    'date' : IDL.Text,
-    'staffUsername' : IDL.Text,
-    'subjectId' : SubjectId,
-    'regNo' : RegistrationNumber,
-  });
-  const StudentAttendanceSummary = IDL.Record({
-    'totalClasses' : IDL.Nat,
-    'subjectName' : IDL.Text,
-    'presentCount' : IDL.Nat,
-    'absentCount' : IDL.Nat,
-    'percentage' : IDL.Float64,
-  });
-  const OverallAttendanceSummary = IDL.Record({
-    'name' : IDL.Text,
-    'overallPercentage' : IDL.Float64,
-    'subjectSummaries' : IDL.Vec(StudentAttendanceSummary),
-    'regNo' : RegistrationNumber,
-  });
-  const Student = IDL.Record({
-    'name' : IDL.Text,
-    'registrationNumber' : RegistrationNumber,
-  });
-  const Subject = IDL.Record({ 'id' : SubjectId, 'name' : IDL.Text });
-  const AttendanceInput = IDL.Record({
-    'status' : AttendanceStatus,
-    'regNo' : RegistrationNumber,
-  });
+  const UserProfile = IDL.Record({ 'username' : IDL.Text, 'role' : IDL.Text });
   
   return IDL.Service({
-    'getAttendanceByStaff' : IDL.Func(
-        [SessionToken],
-        [IDL.Vec(AttendanceRecord)],
-        ['query'],
-      ),
-    'getStudentAttendanceRecords' : IDL.Func(
-        [RegistrationNumber],
-        [IDL.Vec(AttendanceRecord)],
-        ['query'],
-      ),
-    'getStudentAttendanceSummary' : IDL.Func(
-        [RegistrationNumber],
-        [OverallAttendanceSummary],
-        ['query'],
-      ),
-    'getStudents' : IDL.Func([], [IDL.Vec(Student)], ['query']),
-    'getSubjects' : IDL.Func([], [IDL.Vec(Subject)], ['query']),
-    'initiateSeedData' : IDL.Func([], [], []),
-    'login' : IDL.Func([IDL.Text, IDL.Text], [SessionToken], ['query']),
-    'logout' : IDL.Func([SessionToken], [], []),
-    'markAttendance' : IDL.Func(
-        [SessionToken, SubjectId, IDL.Text, IDL.Vec(AttendanceInput)],
-        [],
-        [],
-      ),
-    'resetAttendanceData' : IDL.Func([], [], []),
+    '_initializeAccessControlWithSecret' : IDL.Func([IDL.Text], [], []),
+    'assignCallerUserRole' : IDL.Func([IDL.Principal, UserRole], [], []),
+    'getCallerUserProfile' : IDL.Func([], [IDL.Opt(UserProfile)], ['query']),
+    'getCallerUserRole' : IDL.Func([], [UserRole], ['query']),
+    'isCallerAdmin' : IDL.Func([], [IDL.Bool], ['query']),
   });
 };
 
