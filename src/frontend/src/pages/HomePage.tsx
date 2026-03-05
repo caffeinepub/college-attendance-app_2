@@ -30,7 +30,7 @@ export default function HomePage({
           transition={{ duration: 0.5, ease: "easeOut" }}
           className="text-center mb-14 max-w-xl"
         >
-          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-primary/10 border border-primary/20 text-primary text-xs font-medium tracking-wide mb-6">
+          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-primary/10 border border-primary/20 text-black text-xs font-medium tracking-wide mb-6">
             <span className="w-1.5 h-1.5 rounded-full bg-primary inline-block" />
             Academic Attendance Portal
           </div>
@@ -39,7 +39,7 @@ export default function HomePage({
             <br />
             <span className="text-primary">Achieve Excellence</span>
           </h1>
-          <p className="text-muted-foreground text-xs tracking-wide lowercase">
+          <p className="text-black text-xs tracking-wide lowercase">
             kathir college attendance registration app
           </p>
         </motion.div>
