@@ -4,37 +4,53 @@ import { Label } from "@/components/ui/label";
 import {
   ArrowLeft,
   GraduationCap,
-  KeyRound,
   Loader2,
   Lock,
+  User,
+  UserPlus,
 } from "lucide-react";
-import { motion } from "motion/react";
+import { AnimatePresence, motion } from "motion/react";
 import { useState } from "react";
 import { toast } from "sonner";
-import { useLogin } from "../hooks/useQueries";
+import { useCreateStaffAccount, useLogin } from "../hooks/useQueries";
 
 interface StaffLoginPageProps {
   onLogin: (token: string) => void;
   onBack: () => void;
 }
 
+type Mode = "login" | "create";
+
 export default function StaffLoginPage({
   onLogin,
   onBack,
 }: StaffLoginPageProps) {
-  const [pin, setPin] = useState("");
+  const [mode, setMode] = useState<Mode>("login");
+
+  // Login state
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
   const [hasError, setHasError] = useState(false);
 
-  const { mutate: login, isPending } = useLogin();
+  // Create account state
+  const [newUsername, setNewUsername] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [createError, setCreateError] = useState("");
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const { mutate: login, isPending: isLoggingIn } = useLogin();
+  const { mutate: createAccount, isPending: isCreating } =
+    useCreateStaffAccount();
+
+  const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
-    const trimmed = pin.trim();
-    if (!trimmed) return;
+    const trimmedUser = username.trim();
+    const trimmedPass = password.trim();
+    if (!trimmedUser || !trimmedPass) return;
 
     setHasError(false);
     login(
-      { username: "staff", password: trimmed },
+      { username: trimmedUser, password: trimmedPass },
       {
         onSuccess: (token) => {
           toast.success("Logged in successfully");
@@ -42,8 +58,51 @@ export default function StaffLoginPage({
         },
         onError: () => {
           setHasError(true);
-          toast.error("Invalid PIN", {
-            description: "Please enter the correct staff PIN to continue.",
+          toast.error("Invalid credentials", {
+            description: "Check your username and password and try again.",
+          });
+        },
+      },
+    );
+  };
+
+  const handleCreate = (e: React.FormEvent) => {
+    e.preventDefault();
+    setCreateError("");
+    const trimmedUser = newUsername.trim();
+    const trimmedPass = newPassword.trim();
+    const trimmedConfirm = confirmPassword.trim();
+
+    if (!trimmedUser || !trimmedPass || !trimmedConfirm) {
+      setCreateError("All fields are required.");
+      return;
+    }
+    if (trimmedPass !== trimmedConfirm) {
+      setCreateError("Passwords do not match.");
+      return;
+    }
+    if (trimmedPass.length < 4) {
+      setCreateError("Password must be at least 4 characters.");
+      return;
+    }
+
+    createAccount(
+      { username: trimmedUser, password: trimmedPass },
+      {
+        onSuccess: () => {
+          toast.success("Account created", {
+            description: `Staff account "${trimmedUser}" is ready. You can now log in.`,
+          });
+          setNewUsername("");
+          setNewPassword("");
+          setConfirmPassword("");
+          setMode("login");
+          setUsername(trimmedUser);
+        },
+        onError: (err: Error) => {
+          setCreateError(err.message || "Could not create account.");
+          toast.error("Account creation failed", {
+            description: err.message,
           });
         },
       },
@@ -79,78 +138,320 @@ export default function StaffLoginPage({
           transition={{ duration: 0.4 }}
           className="w-full max-w-sm"
         >
-          {/* Header */}
-          <div className="text-center mb-8">
-            <div className="w-16 h-16 rounded-2xl bg-primary flex items-center justify-center mx-auto mb-4 shadow-elevated">
-              <Lock className="w-7 h-7 text-primary-foreground" />
-            </div>
-            <h1 className="font-display text-3xl font-bold text-foreground mb-2">
-              Staff Login
-            </h1>
-            <p className="text-black text-sm">
-              Enter your PIN to access the attendance portal.
-            </p>
+          {/* Mode toggle tabs */}
+          <div
+            data-ocid="stafflogin.mode_tab"
+            className="flex rounded-xl bg-secondary border border-border p-1 mb-6"
+          >
+            <button
+              type="button"
+              data-ocid="stafflogin.login_tab"
+              onClick={() => {
+                setMode("login");
+                setHasError(false);
+              }}
+              className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-medium transition-all ${
+                mode === "login"
+                  ? "bg-background shadow text-foreground"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <Lock className="w-3.5 h-3.5" />
+              Login
+            </button>
+            <button
+              type="button"
+              data-ocid="stafflogin.create_tab"
+              onClick={() => {
+                setMode("create");
+                setCreateError("");
+              }}
+              className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-medium transition-all ${
+                mode === "create"
+                  ? "bg-background shadow text-foreground"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <UserPlus className="w-3.5 h-3.5" />
+              Create Account
+            </button>
           </div>
 
-          {/* Login form */}
-          <div className="bg-card border border-border rounded-2xl p-6 shadow-card">
-            <form onSubmit={handleSubmit} className="space-y-5">
-              <div className="space-y-2">
-                <Label
-                  htmlFor="pin-input"
-                  className="text-sm font-medium text-black"
-                >
-                  Staff PIN
-                </Label>
-                <div className="relative">
-                  <KeyRound className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                  <Input
-                    id="pin-input"
-                    data-ocid="stafflogin.pin_input"
-                    type="password"
-                    inputMode="numeric"
-                    value={pin}
-                    onChange={(e) => {
-                      setPin(e.target.value);
-                      setHasError(false);
-                    }}
-                    placeholder="Enter PIN"
-                    autoComplete="current-password"
-                    autoFocus
-                    className={`pl-10 h-12 rounded-xl border-border bg-background focus-visible:ring-primary text-center text-lg tracking-[0.5em] ${
-                      hasError
-                        ? "border-destructive focus-visible:ring-destructive"
-                        : ""
-                    }`}
-                  />
-                </div>
-                {hasError && (
-                  <p
-                    data-ocid="stafflogin.pin_error"
-                    className="text-destructive text-xs font-medium"
-                  >
-                    Invalid PIN. Please try again.
-                  </p>
-                )}
-              </div>
-
-              <Button
-                type="submit"
-                data-ocid="stafflogin.submit_button"
-                disabled={isPending || !pin.trim()}
-                className="w-full h-12 rounded-xl text-base font-medium bg-primary hover:bg-primary/90 text-primary-foreground shadow-card mt-2"
+          <AnimatePresence mode="wait">
+            {mode === "login" ? (
+              <motion.div
+                key="login"
+                initial={{ opacity: 0, x: -12 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: 12 }}
+                transition={{ duration: 0.25 }}
               >
-                {isPending ? (
-                  <>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    Signing in…
-                  </>
-                ) : (
-                  "Sign In"
-                )}
-              </Button>
-            </form>
-          </div>
+                {/* Header */}
+                <div className="text-center mb-6">
+                  <div className="w-14 h-14 rounded-2xl bg-primary flex items-center justify-center mx-auto mb-3 shadow-elevated">
+                    <Lock className="w-6 h-6 text-primary-foreground" />
+                  </div>
+                  <h1 className="font-display text-2xl font-bold text-foreground mb-1">
+                    Staff Login
+                  </h1>
+                  <p className="text-black text-sm">
+                    Enter your username and password to continue.
+                  </p>
+                </div>
+
+                {/* Login form */}
+                <div className="bg-card border border-border rounded-2xl p-6 shadow-card">
+                  <form onSubmit={handleLogin} className="space-y-4">
+                    {/* Username */}
+                    <div className="space-y-1.5">
+                      <Label
+                        htmlFor="login-username"
+                        className="text-sm font-medium text-black"
+                      >
+                        Username
+                      </Label>
+                      <div className="relative">
+                        <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                        <Input
+                          id="login-username"
+                          data-ocid="stafflogin.username_input"
+                          type="text"
+                          value={username}
+                          onChange={(e) => {
+                            setUsername(e.target.value);
+                            setHasError(false);
+                          }}
+                          placeholder="Enter username"
+                          autoComplete="username"
+                          autoFocus
+                          className={`pl-10 h-11 rounded-xl border-border bg-background focus-visible:ring-primary ${
+                            hasError
+                              ? "border-destructive focus-visible:ring-destructive"
+                              : ""
+                          }`}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Password */}
+                    <div className="space-y-1.5">
+                      <Label
+                        htmlFor="login-password"
+                        className="text-sm font-medium text-black"
+                      >
+                        Password
+                      </Label>
+                      <div className="relative">
+                        <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                        <Input
+                          id="login-password"
+                          data-ocid="stafflogin.password_input"
+                          type="password"
+                          value={password}
+                          onChange={(e) => {
+                            setPassword(e.target.value);
+                            setHasError(false);
+                          }}
+                          placeholder="Enter password"
+                          autoComplete="current-password"
+                          className={`pl-10 h-11 rounded-xl border-border bg-background focus-visible:ring-primary ${
+                            hasError
+                              ? "border-destructive focus-visible:ring-destructive"
+                              : ""
+                          }`}
+                        />
+                      </div>
+                      {hasError && (
+                        <p
+                          data-ocid="stafflogin.login_error"
+                          className="text-destructive text-xs font-medium"
+                        >
+                          Invalid username or password. Please try again.
+                        </p>
+                      )}
+                    </div>
+
+                    <Button
+                      type="submit"
+                      data-ocid="stafflogin.submit_button"
+                      disabled={
+                        isLoggingIn || !username.trim() || !password.trim()
+                      }
+                      className="w-full h-11 rounded-xl text-base font-medium bg-primary hover:bg-primary/90 text-primary-foreground shadow-card mt-1"
+                    >
+                      {isLoggingIn ? (
+                        <>
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          Signing in…
+                        </>
+                      ) : (
+                        "Sign In"
+                      )}
+                    </Button>
+                  </form>
+                </div>
+
+                <p className="text-center text-xs text-muted-foreground mt-4">
+                  No account yet?{" "}
+                  <button
+                    type="button"
+                    data-ocid="stafflogin.go_create_link"
+                    onClick={() => setMode("create")}
+                    className="text-primary font-medium hover:underline"
+                  >
+                    Create one
+                  </button>
+                </p>
+              </motion.div>
+            ) : (
+              <motion.div
+                key="create"
+                initial={{ opacity: 0, x: 12 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -12 }}
+                transition={{ duration: 0.25 }}
+              >
+                {/* Header */}
+                <div className="text-center mb-6">
+                  <div className="w-14 h-14 rounded-2xl bg-primary flex items-center justify-center mx-auto mb-3 shadow-elevated">
+                    <UserPlus className="w-6 h-6 text-primary-foreground" />
+                  </div>
+                  <h1 className="font-display text-2xl font-bold text-foreground mb-1">
+                    Create Account
+                  </h1>
+                  <p className="text-black text-sm">
+                    Set up a new staff account to access the portal.
+                  </p>
+                </div>
+
+                {/* Create account form */}
+                <div className="bg-card border border-border rounded-2xl p-6 shadow-card">
+                  <form onSubmit={handleCreate} className="space-y-4">
+                    {/* New username */}
+                    <div className="space-y-1.5">
+                      <Label
+                        htmlFor="create-username"
+                        className="text-sm font-medium text-black"
+                      >
+                        Username
+                      </Label>
+                      <div className="relative">
+                        <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                        <Input
+                          id="create-username"
+                          data-ocid="stafflogin.new_username_input"
+                          type="text"
+                          value={newUsername}
+                          onChange={(e) => {
+                            setNewUsername(e.target.value);
+                            setCreateError("");
+                          }}
+                          placeholder="Choose a username"
+                          autoComplete="username"
+                          autoFocus
+                          className="pl-10 h-11 rounded-xl border-border bg-background focus-visible:ring-primary"
+                        />
+                      </div>
+                    </div>
+
+                    {/* New password */}
+                    <div className="space-y-1.5">
+                      <Label
+                        htmlFor="create-password"
+                        className="text-sm font-medium text-black"
+                      >
+                        Password
+                      </Label>
+                      <div className="relative">
+                        <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                        <Input
+                          id="create-password"
+                          data-ocid="stafflogin.new_password_input"
+                          type="password"
+                          value={newPassword}
+                          onChange={(e) => {
+                            setNewPassword(e.target.value);
+                            setCreateError("");
+                          }}
+                          placeholder="Choose a password"
+                          autoComplete="new-password"
+                          className="pl-10 h-11 rounded-xl border-border bg-background focus-visible:ring-primary"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Confirm password */}
+                    <div className="space-y-1.5">
+                      <Label
+                        htmlFor="confirm-password"
+                        className="text-sm font-medium text-black"
+                      >
+                        Confirm Password
+                      </Label>
+                      <div className="relative">
+                        <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                        <Input
+                          id="confirm-password"
+                          data-ocid="stafflogin.confirm_password_input"
+                          type="password"
+                          value={confirmPassword}
+                          onChange={(e) => {
+                            setConfirmPassword(e.target.value);
+                            setCreateError("");
+                          }}
+                          placeholder="Re-enter password"
+                          autoComplete="new-password"
+                          className="pl-10 h-11 rounded-xl border-border bg-background focus-visible:ring-primary"
+                        />
+                      </div>
+                    </div>
+
+                    {createError && (
+                      <p
+                        data-ocid="stafflogin.create_error"
+                        className="text-destructive text-xs font-medium"
+                      >
+                        {createError}
+                      </p>
+                    )}
+
+                    <Button
+                      type="submit"
+                      data-ocid="stafflogin.create_submit_button"
+                      disabled={
+                        isCreating ||
+                        !newUsername.trim() ||
+                        !newPassword.trim() ||
+                        !confirmPassword.trim()
+                      }
+                      className="w-full h-11 rounded-xl text-base font-medium bg-primary hover:bg-primary/90 text-primary-foreground shadow-card mt-1"
+                    >
+                      {isCreating ? (
+                        <>
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          Creating…
+                        </>
+                      ) : (
+                        "Create Account"
+                      )}
+                    </Button>
+                  </form>
+                </div>
+
+                <p className="text-center text-xs text-muted-foreground mt-4">
+                  Already have an account?{" "}
+                  <button
+                    type="button"
+                    data-ocid="stafflogin.go_login_link"
+                    onClick={() => setMode("login")}
+                    className="text-primary font-medium hover:underline"
+                  >
+                    Sign in
+                  </button>
+                </p>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </motion.div>
       </main>
 

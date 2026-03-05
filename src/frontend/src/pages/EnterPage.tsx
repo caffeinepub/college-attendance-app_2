@@ -1,23 +1,18 @@
 import { motion } from "motion/react";
-import { useEffect, useState } from "react";
 
 interface EnterPageProps {
   onEnter: () => void;
 }
 
 export default function EnterPage({ onEnter }: EnterPageProps) {
-  const [ripples, setRipples] = useState<number[]>([]);
-
-  // Auto-add ripple pulses
-  useEffect(() => {
-    const id = setInterval(() => {
-      setRipples((prev) => [...prev.slice(-4), Date.now()]);
-    }, 1800);
-    return () => clearInterval(id);
-  }, []);
-
   return (
-    <div className="sky-gradient min-h-screen flex flex-col items-center justify-center relative overflow-hidden select-none">
+    <div
+      className="fixed inset-0 w-screen h-screen flex flex-col items-center justify-center overflow-hidden select-none"
+      style={{
+        background:
+          "linear-gradient(160deg, oklch(0.55 0.2 222) 0%, oklch(0.68 0.15 210) 40%, oklch(0.82 0.1 215) 70%, oklch(0.96 0.03 218) 100%)",
+      }}
+    >
       {/* ── Decorative floating orbs ── */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
         {/* Large orb top-left */}
@@ -64,46 +59,6 @@ export default function EnterPage({ onEnter }: EnterPageProps) {
 
       {/* ── Content ── */}
       <div className="relative z-10 flex flex-col items-center text-white text-center px-6">
-        {/* College logo + name */}
-        <motion.div
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.7, ease: "easeOut" }}
-          className="relative mb-8 flex flex-col items-center"
-        >
-          {/* Ripple rings around logo */}
-          <div className="relative flex items-center justify-center">
-            {ripples.map((key) => (
-              <motion.div
-                key={key}
-                className="absolute rounded-full border-2 border-white/40"
-                style={{ width: 160, height: 160 }}
-                initial={{ scale: 1, opacity: 0.6 }}
-                animate={{ scale: 2.2, opacity: 0 }}
-                transition={{ duration: 1.6, ease: "easeOut" }}
-              />
-            ))}
-            {/* Outer glow ring */}
-            <motion.div
-              className="pulse-ring absolute rounded-full bg-white/10"
-              style={{ width: 176, height: 176, inset: -8 }}
-            />
-            {/* College logo */}
-            <motion.div
-              initial={{ scale: 0, rotate: -15 }}
-              animate={{ scale: 1, rotate: 0 }}
-              transition={{ duration: 0.7, ease: [0.34, 1.56, 0.64, 1] }}
-              className="relative z-10"
-            >
-              <img
-                src="/assets/uploads/12-1.png"
-                alt="Kathir College of Engineering logo"
-                className="w-44 h-44 object-contain drop-shadow-2xl"
-              />
-            </motion.div>
-          </div>
-        </motion.div>
-
         {/* Title */}
         <motion.h1
           initial={{ opacity: 0, y: 30 }}

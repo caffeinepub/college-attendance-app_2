@@ -11,7 +11,24 @@ import type { AttendanceStatus } from "../types/attendance";
 // ── Local storage keys ────────────────────────────────────────
 const RECORDS_KEY = "attendance_records_v1";
 const SESSION_KEY = "staff_session_v1";
-const STAFF_PIN = "2026";
+const ACCOUNTS_KEY = "staff_accounts_v1";
+
+// Seed default account: username "staff", password "2026"
+const DEFAULT_ACCOUNTS: Record<string, string> = { staff: "2026" };
+
+function loadAccounts(): Record<string, string> {
+  try {
+    const raw = localStorage.getItem(ACCOUNTS_KEY);
+    if (!raw) return { ...DEFAULT_ACCOUNTS };
+    return JSON.parse(raw) as Record<string, string>;
+  } catch {
+    return { ...DEFAULT_ACCOUNTS };
+  }
+}
+
+function saveAccounts(accounts: Record<string, string>): void {
+  localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(accounts));
+}
 
 function loadRecords(): AttendanceRecord[] {
   try {
@@ -90,10 +107,33 @@ export function useLogin() {
       username: string;
       password: string;
     }): Promise<SessionToken> => {
-      if (username !== "staff" || password !== STAFF_PIN) {
-        throw new Error("Invalid PIN");
+      const accounts = loadAccounts();
+      if (!accounts[username] || accounts[username] !== password) {
+        throw new Error("Invalid username or password");
       }
       return createSession(username);
+    },
+  });
+}
+
+// ── Create Staff Account ─────────────────────────────────────
+export function useCreateStaffAccount() {
+  return useMutation({
+    mutationFn: async ({
+      username,
+      password,
+    }: {
+      username: string;
+      password: string;
+    }): Promise<void> => {
+      const accounts = loadAccounts();
+      if (accounts[username]) {
+        throw new Error(
+          `Username "${username}" is already taken. Choose a different one.`,
+        );
+      }
+      accounts[username] = password;
+      saveAccounts(accounts);
     },
   });
 }
