@@ -179,16 +179,16 @@ function MarkAttendanceTab({ token }: { token: SessionToken }) {
           <span className="text-[#1e3a5f] font-medium">
             {STUDENTS.length} students
           </span>
-          <span className="flex items-center gap-1.5 text-success-foreground font-semibold">
-            <CheckCircle2 className="w-4 h-4 text-success" />
+          <span className="flex items-center gap-1.5 text-green-600 font-semibold">
+            <CheckCircle2 className="w-4 h-4 text-green-600" />
             {presentCount} Present
           </span>
           <span className="flex items-center gap-1.5 text-destructive font-semibold">
             <XCircle className="w-4 h-4" />
             {absentCount} Absent
           </span>
-          <span className="flex items-center gap-1.5 text-onduty-foreground font-semibold">
-            <ShieldCheck className="w-4 h-4 text-onduty" />
+          <span className="flex items-center gap-1.5 text-gray-500 font-semibold">
+            <ShieldCheck className="w-4 h-4 text-gray-400" />
             {onDutyCount} On-Duty
           </span>
 
@@ -240,9 +240,9 @@ function MarkAttendanceTab({ token }: { token: SessionToken }) {
                 <div
                   className={`w-8 h-8 rounded-lg flex items-center justify-center text-[11px] font-bold shrink-0 ${
                     isPresent
-                      ? "bg-success/20 text-success-foreground"
+                      ? "bg-success/20 text-green-600"
                       : isOnDuty
-                        ? "bg-onduty/20 text-onduty-foreground"
+                        ? "bg-onduty/20 text-gray-500"
                         : "bg-muted text-muted-foreground"
                   }`}
                 >

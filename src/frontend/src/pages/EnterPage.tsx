@@ -1,4 +1,3 @@
-import { GraduationCap } from "lucide-react";
 import { motion } from "motion/react";
 import { useEffect, useState } from "react";
 
@@ -65,45 +64,65 @@ export default function EnterPage({ onEnter }: EnterPageProps) {
 
       {/* ── Content ── */}
       <div className="relative z-10 flex flex-col items-center text-white text-center px-6">
-        {/* Ripple logo */}
-        <div className="relative mb-10">
-          {/* Ripple rings */}
-          {ripples.map((key) => (
+        {/* College logo + name */}
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.7, ease: "easeOut" }}
+          className="relative mb-8 flex flex-col items-center"
+        >
+          {/* Ripple rings around logo */}
+          <div className="relative flex items-center justify-center">
+            {ripples.map((key) => (
+              <motion.div
+                key={key}
+                className="absolute rounded-full border-2 border-white/40"
+                style={{ width: 160, height: 160 }}
+                initial={{ scale: 1, opacity: 0.6 }}
+                animate={{ scale: 2.2, opacity: 0 }}
+                transition={{ duration: 1.6, ease: "easeOut" }}
+              />
+            ))}
+            {/* Outer glow ring */}
             <motion.div
-              key={key}
-              className="absolute inset-0 rounded-full border-2 border-white/40"
-              initial={{ scale: 1, opacity: 0.6 }}
-              animate={{ scale: 2.8, opacity: 0 }}
-              transition={{ duration: 1.6, ease: "easeOut" }}
+              className="pulse-ring absolute rounded-full bg-white/10"
+              style={{ width: 176, height: 176, inset: -8 }}
             />
-          ))}
-
-          {/* Outer glow ring */}
-          <motion.div
-            className="pulse-ring absolute -inset-4 rounded-full bg-white/10"
-            style={{ zIndex: 0 }}
-          />
-
-          {/* Icon circle */}
-          <motion.div
-            initial={{ scale: 0, rotate: -30 }}
-            animate={{ scale: 1, rotate: 0 }}
-            transition={{ duration: 0.7, ease: [0.34, 1.56, 0.64, 1] }}
-            className="relative z-10 w-24 h-24 rounded-full bg-white/20 backdrop-blur-sm border-2 border-white/40 flex items-center justify-center shadow-2xl"
-          >
-            <GraduationCap className="w-12 h-12 text-white" />
-          </motion.div>
-        </div>
+            {/* College logo */}
+            <motion.div
+              initial={{ scale: 0, rotate: -15 }}
+              animate={{ scale: 1, rotate: 0 }}
+              transition={{ duration: 0.7, ease: [0.34, 1.56, 0.64, 1] }}
+              className="relative z-10"
+            >
+              <img
+                src="/assets/uploads/12-1.png"
+                alt="Kathir College of Engineering logo"
+                className="w-44 h-44 object-contain drop-shadow-2xl"
+              />
+            </motion.div>
+          </div>
+        </motion.div>
 
         {/* Title */}
         <motion.h1
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.7, delay: 0.3, ease: "easeOut" }}
-          className="font-display text-5xl sm:text-6xl font-bold mb-3 shimmer-text"
+          className="font-display text-4xl sm:text-5xl font-bold mb-1 shimmer-text"
         >
-          AttendanceIQ
+          Kathir College of Engineering
         </motion.h1>
+
+        {/* Address */}
+        <motion.p
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.45, ease: "easeOut" }}
+          className="text-white/65 text-sm mb-3 tracking-wide"
+        >
+          Wisdom tree, Neelambur, Coimbatore – 641062
+        </motion.p>
 
         {/* Subtitle */}
         <motion.p
@@ -112,7 +131,7 @@ export default function EnterPage({ onEnter }: EnterPageProps) {
           transition={{ duration: 0.6, delay: 0.5, ease: "easeOut" }}
           className="text-white/80 text-lg sm:text-xl font-medium mb-2 tracking-wide"
         >
-          College Attendance Portal
+          Attendance Portal
         </motion.p>
 
         <motion.p

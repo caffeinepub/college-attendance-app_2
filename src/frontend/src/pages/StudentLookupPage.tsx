@@ -510,7 +510,7 @@ export default function StudentLookupPage({ onBack }: StudentLookupPageProps) {
                             </div>
                           </div>
                           <div className="text-center">
-                            <span className="text-sm font-semibold text-success-foreground">
+                            <span className="text-sm font-semibold text-green-600">
                               {subj.presentCount}
                             </span>
                           </div>
@@ -520,7 +520,7 @@ export default function StudentLookupPage({ onBack }: StudentLookupPageProps) {
                             </span>
                           </div>
                           <div className="text-center">
-                            <span className="text-sm font-semibold text-onduty-foreground">
+                            <span className="text-sm font-semibold text-gray-500">
                               {subj.onDutyCount}
                             </span>
                           </div>
@@ -552,7 +552,7 @@ export default function StudentLookupPage({ onBack }: StudentLookupPageProps) {
                       </p>
                     </div>
                     <div className="text-center">
-                      <span className="text-sm font-bold text-success-foreground">
+                      <span className="text-sm font-bold text-green-600">
                         {subjectStats.reduce((s, r) => s + r.presentCount, 0)}
                       </span>
                     </div>
@@ -562,7 +562,7 @@ export default function StudentLookupPage({ onBack }: StudentLookupPageProps) {
                       </span>
                     </div>
                     <div className="text-center">
-                      <span className="text-sm font-bold text-onduty-foreground">
+                      <span className="text-sm font-bold text-gray-500">
                         {subjectStats.reduce((s, r) => s + r.onDutyCount, 0)}
                       </span>
                     </div>
