@@ -139,7 +139,7 @@ function MarkAttendanceTab({ token }: { token: SessionToken }) {
       <div className="bg-card border border-border rounded-xl p-4 shadow-xs">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="space-y-2">
-            <Label className="text-xs font-medium text-[#1e3a5f] uppercase tracking-wide">
+            <Label className="text-xs font-medium text-black uppercase tracking-wide">
               Subject
             </Label>
             <Select value={selectedSubject} onValueChange={setSelectedSubject}>
@@ -160,7 +160,7 @@ function MarkAttendanceTab({ token }: { token: SessionToken }) {
           </div>
 
           <div className="space-y-2">
-            <Label className="text-xs font-medium text-[#1e3a5f] uppercase tracking-wide">
+            <Label className="text-xs font-medium text-black uppercase tracking-wide">
               Date
             </Label>
             <input
@@ -176,7 +176,7 @@ function MarkAttendanceTab({ token }: { token: SessionToken }) {
 
         {/* Summary row */}
         <div className="flex flex-wrap items-center gap-x-5 gap-y-2 mt-4 pt-4 border-t border-border text-sm">
-          <span className="text-[#1e3a5f] font-medium">
+          <span className="text-black font-medium">
             {STUDENTS.length} students
           </span>
           <span className="flex items-center gap-1.5 text-green-600 font-semibold">
@@ -316,7 +316,7 @@ function MarkAttendanceTab({ token }: { token: SessionToken }) {
                 onChange={(e) => setConfirmed(e.target.checked)}
                 className="w-4 h-4 accent-primary rounded cursor-pointer"
               />
-              <span className="text-sm text-[#1e3a5f]">
+              <span className="text-sm text-black">
                 I have reviewed all attendance entries and confirm they are
                 correct.
               </span>
@@ -411,7 +411,7 @@ function ViewRecordsTab({ token }: { token: SessionToken }) {
         className="flex flex-col items-center gap-3 py-16 text-center"
       >
         <AlertCircle className="w-10 h-10 text-destructive/60" />
-        <p className="text-[#1e3a5f] text-sm">
+        <p className="text-black text-sm">
           Failed to load records. Please try again.
         </p>
       </div>
@@ -424,7 +424,7 @@ function ViewRecordsTab({ token }: { token: SessionToken }) {
       <div className="bg-card border border-border rounded-xl p-4 shadow-xs">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="space-y-2">
-            <Label className="text-xs font-medium text-[#1e3a5f] uppercase tracking-wide">
+            <Label className="text-xs font-medium text-black uppercase tracking-wide">
               Filter by Subject
             </Label>
             <Select value={filterSubject} onValueChange={setFilterSubject}>
@@ -445,7 +445,7 @@ function ViewRecordsTab({ token }: { token: SessionToken }) {
             </Select>
           </div>
           <div className="space-y-2">
-            <Label className="text-xs font-medium text-[#1e3a5f] uppercase tracking-wide">
+            <Label className="text-xs font-medium text-black uppercase tracking-wide">
               Filter by Date
             </Label>
             <input
@@ -481,7 +481,7 @@ function ViewRecordsTab({ token }: { token: SessionToken }) {
           </div>
           <div>
             <p className="font-medium text-foreground mb-1">No records found</p>
-            <p className="text-[#1e3a5f] text-sm">
+            <p className="text-black text-sm">
               {filterSubject !== "all" || filterDate
                 ? "No records match the current filters."
                 : "Submitted attendance will appear here."}
@@ -504,7 +504,7 @@ function ViewRecordsTab({ token }: { token: SessionToken }) {
                 <span className="font-display font-semibold text-sm text-foreground">
                   {formatDate(date)}
                 </span>
-                <span className="ml-auto text-xs text-[#1e3a5f]">
+                <span className="ml-auto text-xs text-black">
                   {Object.values(subjectGroups).flat().length} records
                 </span>
               </div>
@@ -622,7 +622,7 @@ export default function StaffDashboardPage({
               <span className="font-display font-semibold text-sm text-foreground">
                 Staff Dashboard
               </span>
-              <p className="text-[#1e3a5f] text-[10px] leading-tight">
+              <p className="text-black text-[10px] leading-tight">
                 AttendanceIQ · 711625AM Batch
               </p>
             </div>
@@ -686,7 +686,7 @@ export default function StaffDashboardPage({
 
       {/* Footer */}
       <footer className="py-4 text-center">
-        <p className="text-[#1e3a5f] text-xs">
+        <p className="text-black text-xs">
           © {new Date().getFullYear()}.{" "}
           <a
             href={`https://caffeine.ai?utm_source=caffeine-footer&utm_medium=referral&utm_content=${encodeURIComponent(window.location.hostname)}`}

@@ -87,7 +87,7 @@ export default function StaffLoginPage({
             <h1 className="font-display text-3xl font-bold text-foreground mb-2">
               Staff Login
             </h1>
-            <p className="text-[#1e3a5f] text-sm">
+            <p className="text-black text-sm">
               Enter your PIN to access the attendance portal.
             </p>
           </div>
@@ -98,7 +98,7 @@ export default function StaffLoginPage({
               <div className="space-y-2">
                 <Label
                   htmlFor="pin-input"
-                  className="text-sm font-medium text-[#1e3a5f]"
+                  className="text-sm font-medium text-black"
                 >
                   Staff PIN
                 </Label>
@@ -156,7 +156,7 @@ export default function StaffLoginPage({
 
       {/* Footer */}
       <footer className="py-4 text-center">
-        <p className="text-[#1e3a5f] text-xs">
+        <p className="text-black text-xs">
           © {new Date().getFullYear()}.{" "}
           <a
             href={`https://caffeine.ai?utm_source=caffeine-footer&utm_medium=referral&utm_content=${encodeURIComponent(window.location.hostname)}`}

@@ -26,15 +26,15 @@
 
     /* Backgrounds — pure white */
     --background: 1 0 0;
-    --foreground: 0.18 0.04 220;
+    --foreground: 0 0 0;
 
     /* Cards — white */
     --card: 1 0 0;
-    --card-foreground: 0.18 0.04 220;
+    --card-foreground: 0 0 0;
 
     /* Popover */
     --popover: 1 0 0;
-    --popover-foreground: 0.18 0.04 220;
+    --popover-foreground: 0 0 0;
 
     /* Primary — sky blue */
     --primary: 0.58 0.18 222;
@@ -46,7 +46,7 @@
 
     /* Muted */
     --muted: 0.95 0.02 215;
-    --muted-foreground: 0.28 0.1 240;
+    --muted-foreground: 0 0 0;
 
     /* Accent — sky blue lighter */
     --accent: 0.88 0.08 218;
