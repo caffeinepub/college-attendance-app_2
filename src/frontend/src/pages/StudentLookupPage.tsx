@@ -17,9 +17,17 @@ import { AnimatePresence, motion } from "motion/react";
 import { useMemo, useState } from "react";
 import { useStudentAttendanceRecords } from "../hooks/useQueries";
 import { AttendanceStatus } from "../types/attendance";
-import { SUBJECTS, isValidRegNo } from "../utils/attendanceData";
+import {
+  DEPT_CONFIG,
+  YEAR_CODE,
+  getDeptYearLabel,
+  getSubjectsForDept,
+  isValidRegNoForDept,
+} from "../utils/attendanceData";
 
 interface StudentLookupPageProps {
+  dept: string;
+  year: number;
   onBack: () => void;
 }
 
@@ -85,16 +93,34 @@ interface SubjectStats {
 
 // ── Main page ─────────────────────────────────────────────────
 
-export default function StudentLookupPage({ onBack }: StudentLookupPageProps) {
+export default function StudentLookupPage({
+  dept,
+  year,
+  onBack,
+}: StudentLookupPageProps) {
   const [regInput, setRegInput] = useState("");
   const [submittedReg, setSubmittedReg] = useState<string | null>(null);
   const [validationError, setValidationError] = useState<string | null>(null);
+
+  const subjects = useMemo(() => getSubjectsForDept(dept), [dept]);
 
   const {
     data: rawRecords,
     isLoading,
     isError,
-  } = useStudentAttendanceRecords(submittedReg);
+  } = useStudentAttendanceRecords(submittedReg, dept, year);
+
+  // ── Build range description for error messages ─────────────
+  const rangeDescription = useMemo(() => {
+    const deptCfg = DEPT_CONFIG[dept];
+    if (!deptCfg) return "";
+    const range = deptCfg.ranges[year];
+    const yearCode = YEAR_CODE[year];
+    if (!range || !yearCode) return "";
+    return `7116${yearCode}${deptCfg.code}${range[0]} – 7116${yearCode}${deptCfg.code}${range[1]}`;
+  }, [dept, year]);
+
+  const deptYearLabel = getDeptYearLabel(dept, year);
 
   // ── Calculate per-subject stats from backend records ─────
   const { subjectStats, overallPercentage } = useMemo(() => {
@@ -102,10 +128,9 @@ export default function StudentLookupPage({ onBack }: StudentLookupPageProps) {
       return { subjectStats: [], overallPercentage: 0 };
     }
 
-    const stats: SubjectStats[] = SUBJECTS.map((subj) => {
+    const stats: SubjectStats[] = subjects.map((subj) => {
       const subjRecords = rawRecords.filter((r) => r.subjectId === subj.id);
 
-      // Backend now stores onDuty natively — read status directly
       const presentCount = subjRecords.filter(
         (r) => r.status === AttendanceStatus.present,
       ).length;
@@ -143,16 +168,16 @@ export default function StudentLookupPage({ onBack }: StudentLookupPageProps) {
       overallDenominator === 0 ? 0 : (totalPresent / overallDenominator) * 100;
 
     return { subjectStats: withData, overallPercentage: overall };
-  }, [submittedReg, rawRecords]);
+  }, [submittedReg, rawRecords, subjects]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const trimmed = regInput.trim().toUpperCase();
     if (!trimmed) return;
 
-    if (!isValidRegNo(trimmed)) {
+    if (!isValidRegNoForDept(trimmed, dept, year)) {
       setValidationError(
-        `"${trimmed}" is not a valid registration number. Valid range: 711625AM101 – 711625AM163.`,
+        `"${trimmed}" is not a valid registration number for ${deptYearLabel}. Valid range: ${rangeDescription}.`,
       );
       return;
     }
@@ -186,10 +211,15 @@ export default function StudentLookupPage({ onBack }: StudentLookupPageProps) {
         >
           <ArrowLeft className="w-4 h-4" />
         </Button>
-        <div className="flex items-center gap-2">
-          <GraduationCap className="w-5 h-5 text-primary" />
-          <span className="font-display font-semibold text-base">
-            Student Attendance Lookup
+        <div className="flex items-center gap-2 min-w-0">
+          <GraduationCap className="w-5 h-5 text-primary shrink-0" />
+          <span className="font-display font-semibold text-base truncate">
+            Student Lookup
+          </span>
+        </div>
+        <div className="ml-auto shrink-0">
+          <span className="text-xs text-black bg-primary/10 border border-primary/20 rounded-full px-2.5 py-1 font-medium">
+            {deptYearLabel}
           </span>
         </div>
       </header>
@@ -215,10 +245,12 @@ export default function StudentLookupPage({ onBack }: StudentLookupPageProps) {
                 </h1>
                 <p className="text-black text-sm">
                   Enter your registration number to view your attendance records
-                  across all 6 subjects.
+                  {subjects.length > 0
+                    ? ` across ${subjects.length} subject${subjects.length !== 1 ? "s" : ""}.`
+                    : "."}
                 </p>
-                <p className="text-black/70 text-xs mt-1">
-                  Batch: 711625AM101 – 711625AM163
+                <p className="text-black/70 text-xs mt-1 font-medium">
+                  {deptYearLabel} · {rangeDescription}
                 </p>
               </div>
 
@@ -238,7 +270,7 @@ export default function StudentLookupPage({ onBack }: StudentLookupPageProps) {
                       setRegInput(e.target.value);
                       setValidationError(null);
                     }}
-                    placeholder="e.g. 711625AM101"
+                    placeholder={`e.g. ${rangeDescription.split(" – ")[0] ?? "711625AM101"}`}
                     autoFocus
                     autoComplete="off"
                     className={`h-12 text-base rounded-xl border-border bg-card shadow-xs focus-visible:ring-primary font-mono tracking-wide ${
@@ -256,7 +288,7 @@ export default function StudentLookupPage({ onBack }: StudentLookupPageProps) {
                     </p>
                   ) : (
                     <p className="text-black text-xs">
-                      Format: 711625AM followed by 3 digits (101–163)
+                      Valid range: {rangeDescription}
                     </p>
                   )}
                 </div>
@@ -369,7 +401,7 @@ export default function StudentLookupPage({ onBack }: StudentLookupPageProps) {
                   <strong className="text-foreground font-mono">
                     {submittedReg}
                   </strong>{" "}
-                  yet.
+                  in <strong>{deptYearLabel}</strong> yet.
                 </p>
               </div>
               <Button
@@ -407,7 +439,10 @@ export default function StudentLookupPage({ onBack }: StudentLookupPageProps) {
                     <h2 className="font-display text-2xl font-bold text-primary-foreground mb-1">
                       Attendance Summary
                     </h2>
-                    <p className="text-primary-foreground/75 text-sm mb-3">
+                    <p className="text-primary-foreground/75 text-sm mb-1">
+                      {deptYearLabel}
+                    </p>
+                    <p className="text-primary-foreground/60 text-xs mb-3">
                       {subjectStats.length} subject
                       {subjectStats.length !== 1 ? "s" : ""} with records
                     </p>
@@ -462,7 +497,7 @@ export default function StudentLookupPage({ onBack }: StudentLookupPageProps) {
 
                 <div className="bg-card border border-border rounded-xl overflow-hidden shadow-xs">
                   {/* Table header */}
-                  <div className="grid grid-cols-6 gap-2 px-4 py-2.5 bg-muted/40 border-b border-border text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">
+                  <div className="grid grid-cols-6 gap-2 px-4 py-2.5 bg-muted/40 border-b border-border text-[11px] font-semibold text-black uppercase tracking-wide">
                     <div className="col-span-2">Subject</div>
                     <div className="text-center">P</div>
                     <div className="text-center">A</div>
@@ -491,7 +526,7 @@ export default function StudentLookupPage({ onBack }: StudentLookupPageProps) {
                       >
                         <div className="grid grid-cols-6 gap-2 px-4 py-3 items-center">
                           <div className="col-span-2">
-                            <p className="text-sm font-medium text-black leading-snug">
+                            <p className="text-sm font-medium text-black leading-snug font-body">
                               {subj.subjectName}
                             </p>
                             <div className="mt-1.5 h-1.5 bg-muted rounded-full overflow-hidden">
@@ -515,26 +550,26 @@ export default function StudentLookupPage({ onBack }: StudentLookupPageProps) {
                             </span>
                           </div>
                           <div className="text-center">
-                            <span className="text-sm font-semibold text-destructive">
+                            <span className="text-sm font-semibold text-red-600">
                               {subj.absentCount}
                             </span>
                           </div>
                           <div className="text-center">
-                            <span className="text-sm font-semibold text-gray-500">
+                            <span className="text-sm font-semibold text-blue-600">
                               {subj.onDutyCount}
                             </span>
                           </div>
                           <div className="text-center">
                             {pct >= 75 ? (
-                              <Badge className="bg-success/15 text-success-foreground border border-success/20 text-xs px-1.5 py-0.5">
+                              <Badge className="bg-success/15 text-black border border-success/20 text-xs px-1.5 py-0.5">
                                 {pct.toFixed(0)}%
                               </Badge>
                             ) : pct >= 60 ? (
-                              <Badge className="bg-warning/15 text-warning-foreground border border-warning/20 text-xs px-1.5 py-0.5">
+                              <Badge className="bg-warning/15 text-black border border-warning/20 text-xs px-1.5 py-0.5">
                                 {pct.toFixed(0)}%
                               </Badge>
                             ) : (
-                              <Badge className="bg-destructive/15 text-destructive border border-destructive/20 text-xs px-1.5 py-0.5">
+                              <Badge className="bg-destructive/15 text-black border border-destructive/20 text-xs px-1.5 py-0.5">
                                 {pct.toFixed(0)}%
                               </Badge>
                             )}
@@ -547,9 +582,7 @@ export default function StudentLookupPage({ onBack }: StudentLookupPageProps) {
                   {/* Overall total row */}
                   <div className="grid grid-cols-6 gap-2 px-4 py-3 bg-muted/30 border-t-2 border-border items-center">
                     <div className="col-span-2">
-                      <p className="text-sm font-bold text-foreground">
-                        Overall
-                      </p>
+                      <p className="text-sm font-bold text-black">Overall</p>
                     </div>
                     <div className="text-center">
                       <span className="text-sm font-bold text-green-600">
@@ -557,26 +590,26 @@ export default function StudentLookupPage({ onBack }: StudentLookupPageProps) {
                       </span>
                     </div>
                     <div className="text-center">
-                      <span className="text-sm font-bold text-destructive">
+                      <span className="text-sm font-bold text-red-600">
                         {subjectStats.reduce((s, r) => s + r.absentCount, 0)}
                       </span>
                     </div>
                     <div className="text-center">
-                      <span className="text-sm font-bold text-gray-500">
+                      <span className="text-sm font-bold text-blue-600">
                         {subjectStats.reduce((s, r) => s + r.onDutyCount, 0)}
                       </span>
                     </div>
                     <div className="text-center">
                       {overallPercentage >= 75 ? (
-                        <Badge className="bg-success/20 text-success-foreground border border-success/30 font-bold text-xs px-1.5 py-0.5">
+                        <Badge className="bg-success/20 text-black border border-success/30 font-bold text-xs px-1.5 py-0.5">
                           {overallPercentage.toFixed(0)}%
                         </Badge>
                       ) : overallPercentage >= 60 ? (
-                        <Badge className="bg-warning/20 text-warning-foreground border border-warning/30 font-bold text-xs px-1.5 py-0.5">
+                        <Badge className="bg-warning/20 text-black border border-warning/30 font-bold text-xs px-1.5 py-0.5">
                           {overallPercentage.toFixed(0)}%
                         </Badge>
                       ) : (
-                        <Badge className="bg-destructive/20 text-destructive border border-destructive/30 font-bold text-xs px-1.5 py-0.5">
+                        <Badge className="bg-destructive/20 text-black border border-destructive/30 font-bold text-xs px-1.5 py-0.5">
                           {overallPercentage.toFixed(0)}%
                         </Badge>
                       )}

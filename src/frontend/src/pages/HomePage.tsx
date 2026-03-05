@@ -34,15 +34,13 @@ export default function HomePage({
             <span className="w-1.5 h-1.5 rounded-full bg-primary inline-block" />
             Academic Attendance Portal
           </div>
-          <h1 className="font-display text-4xl sm:text-5xl font-bold text-foreground leading-tight mb-4">
+          <h1 className="font-display text-4xl sm:text-5xl font-bold text-foreground leading-tight mb-3">
             Track Attendance,
             <br />
             <span className="text-primary">Achieve Excellence</span>
           </h1>
-          <p className="text-muted-foreground text-base leading-relaxed">
-            Attendance management for the 711625AM batch.
-            <br className="hidden sm:block" />
-            Mark records, track on-duty, view subject-wise stats.
+          <p className="text-muted-foreground text-xs tracking-wide lowercase">
+            kathir college attendance registration app
           </p>
         </motion.div>
 
@@ -71,8 +69,7 @@ export default function HomePage({
                 Staff Panel
               </h2>
               <p className="text-primary-foreground/75 text-sm leading-relaxed mb-6">
-                Mark attendance for 63 students — Present, Absent, or On-Duty —
-                per subject and date.
+                Mark attendance per subject and date for your department.
               </p>
               <div className="flex items-center gap-2 text-sm font-medium">
                 Login as Staff
@@ -114,29 +111,6 @@ export default function HomePage({
             </div>
           </motion.button>
         </div>
-
-        {/* Stats strip */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.5, delay: 0.4 }}
-          className="mt-14 flex items-center gap-8 text-center"
-        >
-          {[
-            { label: "Students", value: "63" },
-            { label: "Subjects", value: "6" },
-            { label: "On-Chain Records", value: "∞" },
-          ].map((stat) => (
-            <div key={stat.label} className="flex flex-col">
-              <span className="font-display text-2xl font-bold text-primary">
-                {stat.value}
-              </span>
-              <span className="text-muted-foreground text-xs mt-0.5">
-                {stat.label}
-              </span>
-            </div>
-          ))}
-        </motion.div>
       </main>
 
       {/* Footer */}

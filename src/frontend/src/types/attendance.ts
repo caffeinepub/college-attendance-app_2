@@ -22,6 +22,8 @@ export interface AttendanceRecord {
   date: string;
   status: AttendanceStatus;
   staffUsername: string;
+  dept?: string;
+  year?: number;
 }
 
 export interface StudentAttendanceSummary {

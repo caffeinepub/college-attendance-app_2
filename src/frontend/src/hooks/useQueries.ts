@@ -9,7 +9,7 @@ import type {
 import type { AttendanceStatus } from "../types/attendance";
 
 // ── Local storage keys ────────────────────────────────────────
-const RECORDS_KEY = "attendance_records_v1";
+const RECORDS_KEY = "attendance_records_v2";
 const SESSION_KEY = "staff_session_v1";
 const ACCOUNTS_KEY = "staff_accounts_v1";
 
@@ -71,26 +71,40 @@ function validateSession(token: string): string | null {
 }
 
 // ── Staff Attendance Records ─────────────────────────────────
-export function useAttendanceByStaff(token: SessionToken | null) {
+export function useAttendanceByStaff(
+  token: SessionToken | null,
+  deptKey?: string,
+  year?: number,
+) {
   return useQuery({
-    queryKey: ["staffRecords", token],
+    queryKey: ["staffRecords", token, deptKey, year],
     queryFn: async (): Promise<AttendanceRecord[]> => {
       if (!token) return [];
       const username = validateSession(token);
       if (!username) throw new Error("Invalid session");
-      return loadRecords().filter((r) => r.staffUsername === username);
+      let records = loadRecords().filter((r) => r.staffUsername === username);
+      if (deptKey) records = records.filter((r) => r.dept === deptKey);
+      if (year !== undefined) records = records.filter((r) => r.year === year);
+      return records;
     },
     enabled: !!token,
   });
 }
 
 // ── Student Attendance Records (raw, for frontend calculations) ──
-export function useStudentAttendanceRecords(regNo: RegistrationNumber | null) {
+export function useStudentAttendanceRecords(
+  regNo: RegistrationNumber | null,
+  deptKey?: string,
+  year?: number,
+) {
   return useQuery({
-    queryKey: ["studentRecords", regNo],
+    queryKey: ["studentRecords", regNo, deptKey, year],
     queryFn: async (): Promise<AttendanceRecord[]> => {
       if (!regNo) return [];
-      return loadRecords().filter((r) => r.regNo === regNo);
+      let records = loadRecords().filter((r) => r.regNo === regNo);
+      if (deptKey) records = records.filter((r) => r.dept === deptKey);
+      if (year !== undefined) records = records.filter((r) => r.year === year);
+      return records;
     },
     enabled: !!regNo,
     retry: false,
@@ -160,19 +174,29 @@ export function useMarkAttendance() {
       subjectId,
       date,
       attendanceList,
+      dept,
+      year,
     }: {
       token: SessionToken;
       subjectId: SubjectId;
       date: string;
       attendanceList: AttendanceInput[];
+      dept?: string;
+      year?: number;
     }): Promise<void> => {
       const username = validateSession(token);
       if (!username) throw new Error("Invalid session");
 
       const existing = loadRecords();
-      // Remove prior records for same subject+date (allow re-submission)
+      // Remove prior records for same subject+date+dept+year (allow re-submission)
       const filtered = existing.filter(
-        (r) => !(r.subjectId === subjectId && r.date === date),
+        (r) =>
+          !(
+            r.subjectId === subjectId &&
+            r.date === date &&
+            (dept === undefined || r.dept === dept) &&
+            (year === undefined || r.year === year)
+          ),
       );
       const newRecords: AttendanceRecord[] = attendanceList.map((entry) => ({
         regNo: entry.regNo,
@@ -180,6 +204,8 @@ export function useMarkAttendance() {
         date,
         status: entry.status as AttendanceStatus,
         staffUsername: username,
+        dept,
+        year,
       }));
       saveRecords([...filtered, ...newRecords]);
     },
