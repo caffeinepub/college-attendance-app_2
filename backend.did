@@ -1,0 +1,73 @@
+type UserRole = 
+ variant {
+   admin;
+   guest;
+   user;
+ };
+type UserProfile = 
+ record {
+   role: text;
+   username: text;
+ };
+type Subject = 
+ record {
+   id: text;
+   name: text;
+ };
+type AttendanceStatus = 
+ variant {
+   absent;
+   onDuty;
+   present;
+ };
+type AttendanceRecord = 
+ record {
+   date: text;
+   dept: text;
+   regNo: text;
+   staffUsername: text;
+   status: AttendanceStatus;
+   subjectId: text;
+   year: nat;
+ };
+type AttendanceInput = 
+ record {
+   regNo: text;
+   status: AttendanceStatus;
+ };
+service : {
+  _initializeAccessControlWithSecret: (userSecret: text) -> ();
+  assignCallerUserRole: (user: principal, role: UserRole) -> ();
+  getAttendanceByStaff: (token: text, dept: text, year: nat) ->
+   (variant {
+      err: text;
+      ok: vec AttendanceRecord;
+    });
+  getCallerUserProfile: () -> (opt UserProfile) query;
+  getCallerUserRole: () -> (UserRole) query;
+  getStudentAttendance: (regNo: text, dept: text, year: nat) ->
+   (vec AttendanceRecord) query;
+  getSubjectsForDept: (deptKey: text) -> (vec Subject) query;
+  isCallerAdmin: () -> (bool) query;
+  markAttendance: (token: text, subjectId: text, date: text, attendanceList:
+   vec AttendanceInput, dept: text, year: nat) -> (variant {
+                                                     err: text;
+                                                     ok;
+                                                   });
+  saveSubjectsForDept: (token: text, deptKey: text, subjects: vec Subject) ->
+   (variant {
+      err: text;
+      ok;
+    });
+  staffCreateAccount: (username: text, password: text) ->
+   (variant {
+      err: text;
+      ok;
+    });
+  staffLogin: (username: text, password: text) ->
+   (variant {
+      err: text;
+      ok: text;
+    });
+  staffLogout: (token: text) -> ();
+}

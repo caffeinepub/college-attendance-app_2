@@ -7,67 +7,61 @@ import type {
   SubjectId,
 } from "../types/attendance";
 import type { AttendanceStatus } from "../types/attendance";
+import type { SubjectEntry } from "../utils/attendanceData";
+import { useActor } from "./useActor";
 
-// ── Local storage keys ────────────────────────────────────────
-const RECORDS_KEY = "attendance_records_v2";
-const SESSION_KEY = "staff_session_v1";
-const ACCOUNTS_KEY = "staff_accounts_v1";
-
-// Seed default account: username "staff", password "2026"
-const DEFAULT_ACCOUNTS: Record<string, string> = { staff: "2026" };
-
-function loadAccounts(): Record<string, string> {
-  try {
-    const raw = localStorage.getItem(ACCOUNTS_KEY);
-    if (!raw) return { ...DEFAULT_ACCOUNTS };
-    return JSON.parse(raw) as Record<string, string>;
-  } catch {
-    return { ...DEFAULT_ACCOUNTS };
-  }
+// ── Session token helpers (sessionStorage only — not attendance data) ─────────
+function saveTokenToSession(token: string): void {
+  sessionStorage.setItem("staff_session_token", token);
+}
+function getTokenFromSession(): string | null {
+  return sessionStorage.getItem("staff_session_token");
+}
+function clearTokenFromSession(): void {
+  sessionStorage.removeItem("staff_session_token");
 }
 
-function saveAccounts(accounts: Record<string, string>): void {
-  localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(accounts));
+export { getTokenFromSession };
+
+// ── Subjects (backend canister) ───────────────────────────────────────────────
+export function useGetSubjectsForDept(deptKey: string) {
+  const { actor, isFetching } = useActor();
+  return useQuery<SubjectEntry[]>({
+    queryKey: ["subjects", deptKey],
+    queryFn: async (): Promise<SubjectEntry[]> => {
+      if (!actor || !deptKey) return [];
+      const result = await actor.getSubjectsForDept(deptKey);
+      return result as SubjectEntry[];
+    },
+    enabled: !!actor && !isFetching && !!deptKey,
+  });
 }
 
-function loadRecords(): AttendanceRecord[] {
-  try {
-    const raw = localStorage.getItem(RECORDS_KEY);
-    if (!raw) return [];
-    return JSON.parse(raw) as AttendanceRecord[];
-  } catch {
-    return [];
-  }
-}
-
-function saveRecords(records: AttendanceRecord[]): void {
-  localStorage.setItem(RECORDS_KEY, JSON.stringify(records));
-}
-
-function getSession(): { token: string; username: string } | null {
-  try {
-    const raw = sessionStorage.getItem(SESSION_KEY);
-    if (!raw) return null;
-    return JSON.parse(raw) as { token: string; username: string };
-  } catch {
-    return null;
-  }
-}
-
-function createSession(username: string): string {
-  const token = `${username}_${Date.now()}`;
-  sessionStorage.setItem(SESSION_KEY, JSON.stringify({ token, username }));
-  return token;
-}
-
-function destroySession(): void {
-  sessionStorage.removeItem(SESSION_KEY);
-}
-
-function validateSession(token: string): string | null {
-  const session = getSession();
-  if (!session || session.token !== token) return null;
-  return session.username;
+export function useSaveSubjectsForDept() {
+  const { actor } = useActor();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      token,
+      deptKey,
+      subjects,
+    }: {
+      token: SessionToken;
+      deptKey: string;
+      subjects: SubjectEntry[];
+    }): Promise<void> => {
+      if (!actor) throw new Error("Not connected");
+      const result = await actor.saveSubjectsForDept(token, deptKey, subjects);
+      if (result.__kind__ === "err") {
+        throw new Error(result.err);
+      }
+    },
+    onSuccess: (_data, variables) => {
+      void queryClient.invalidateQueries({
+        queryKey: ["subjects", variables.deptKey],
+      });
+    },
+  });
 }
 
 // ── Staff Attendance Records ─────────────────────────────────
@@ -76,18 +70,27 @@ export function useAttendanceByStaff(
   deptKey?: string,
   year?: number,
 ) {
+  const { actor, isFetching } = useActor();
   return useQuery({
     queryKey: ["staffRecords", token, deptKey, year],
     queryFn: async (): Promise<AttendanceRecord[]> => {
-      if (!token) return [];
-      const username = validateSession(token);
-      if (!username) throw new Error("Invalid session");
-      let records = loadRecords().filter((r) => r.staffUsername === username);
-      if (deptKey) records = records.filter((r) => r.dept === deptKey);
-      if (year !== undefined) records = records.filter((r) => r.year === year);
-      return records;
+      if (!actor || !token || !deptKey || year === undefined) return [];
+      const result = await actor.getAttendanceByStaff(
+        token,
+        deptKey,
+        BigInt(year),
+      );
+      if (result.__kind__ === "err") {
+        throw new Error(result.err);
+      }
+      return result.ok.map((r) => ({
+        ...r,
+        status: r.status as unknown as AttendanceStatus,
+        year: r.year,
+      })) as AttendanceRecord[];
     },
-    enabled: !!token,
+    enabled:
+      !!actor && !isFetching && !!token && !!deptKey && year !== undefined,
   });
 }
 
@@ -97,22 +100,30 @@ export function useStudentAttendanceRecords(
   deptKey?: string,
   year?: number,
 ) {
+  const { actor, isFetching } = useActor();
   return useQuery({
     queryKey: ["studentRecords", regNo, deptKey, year],
     queryFn: async (): Promise<AttendanceRecord[]> => {
-      if (!regNo) return [];
-      let records = loadRecords().filter((r) => r.regNo === regNo);
-      if (deptKey) records = records.filter((r) => r.dept === deptKey);
-      if (year !== undefined) records = records.filter((r) => r.year === year);
-      return records;
+      if (!actor || !regNo || !deptKey || year === undefined) return [];
+      const result = await actor.getStudentAttendance(
+        regNo,
+        deptKey,
+        BigInt(year),
+      );
+      return result.map((r) => ({
+        ...r,
+        status: r.status as unknown as AttendanceStatus,
+        year: r.year,
+      })) as AttendanceRecord[];
     },
-    enabled: !!regNo,
+    enabled: !!actor && !isFetching && !!regNo,
     retry: false,
   });
 }
 
 // ── Login ────────────────────────────────────────────────────
 export function useLogin() {
+  const { actor } = useActor();
   return useMutation({
     mutationFn: async ({
       username,
@@ -121,17 +132,21 @@ export function useLogin() {
       username: string;
       password: string;
     }): Promise<SessionToken> => {
-      const accounts = loadAccounts();
-      if (!accounts[username] || accounts[username] !== password) {
-        throw new Error("Invalid username or password");
+      if (!actor) throw new Error("Not connected to backend");
+      const result = await actor.staffLogin(username, password);
+      if (result.__kind__ === "err") {
+        throw new Error(result.err || "Invalid username or password");
       }
-      return createSession(username);
+      const token = result.ok;
+      saveTokenToSession(token);
+      return token;
     },
   });
 }
 
 // ── Create Staff Account ─────────────────────────────────────
 export function useCreateStaffAccount() {
+  const { actor } = useActor();
   return useMutation({
     mutationFn: async ({
       username,
@@ -140,24 +155,25 @@ export function useCreateStaffAccount() {
       username: string;
       password: string;
     }): Promise<void> => {
-      const accounts = loadAccounts();
-      if (accounts[username]) {
-        throw new Error(
-          `Username "${username}" is already taken. Choose a different one.`,
-        );
+      if (!actor) throw new Error("Not connected to backend");
+      const result = await actor.staffCreateAccount(username, password);
+      if (result.__kind__ === "err") {
+        throw new Error(result.err || "Failed to create account");
       }
-      accounts[username] = password;
-      saveAccounts(accounts);
     },
   });
 }
 
 // ── Logout ───────────────────────────────────────────────────
 export function useLogout() {
+  const { actor } = useActor();
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (_token: SessionToken): Promise<void> => {
-      destroySession();
+    mutationFn: async (token: SessionToken): Promise<void> => {
+      if (actor) {
+        await actor.staffLogout(token);
+      }
+      clearTokenFromSession();
     },
     onSuccess: () => {
       queryClient.removeQueries({ queryKey: ["staffRecords"] });
@@ -167,6 +183,7 @@ export function useLogout() {
 
 // ── Mark Attendance ──────────────────────────────────────────
 export function useMarkAttendance() {
+  const { actor } = useActor();
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async ({
@@ -184,36 +201,27 @@ export function useMarkAttendance() {
       dept?: string;
       year?: number;
     }): Promise<void> => {
-      const username = validateSession(token);
-      if (!username) throw new Error("Invalid session");
-
-      const existing = loadRecords();
-      // Remove prior records for same subject+date+dept+year (allow re-submission)
-      const filtered = existing.filter(
-        (r) =>
-          !(
-            r.subjectId === subjectId &&
-            r.date === date &&
-            (dept === undefined || r.dept === dept) &&
-            (year === undefined || r.year === year)
-          ),
-      );
-      const newRecords: AttendanceRecord[] = attendanceList.map((entry) => ({
-        regNo: entry.regNo,
+      if (!actor) throw new Error("Not connected to backend");
+      if (!dept || year === undefined) {
+        throw new Error("Department and year are required");
+      }
+      const result = await actor.markAttendance(
+        token,
         subjectId,
         date,
-        status: entry.status as AttendanceStatus,
-        staffUsername: username,
+        attendanceList,
         dept,
-        year,
-      }));
-      saveRecords([...filtered, ...newRecords]);
+        BigInt(year),
+      );
+      if (result.__kind__ === "err") {
+        throw new Error(result.err || "Failed to mark attendance");
+      }
     },
     onSuccess: (_data, variables) => {
-      queryClient.invalidateQueries({
+      void queryClient.invalidateQueries({
         queryKey: ["staffRecords", variables.token],
       });
-      queryClient.invalidateQueries({ queryKey: ["studentRecords"] });
+      void queryClient.invalidateQueries({ queryKey: ["studentRecords"] });
     },
   });
 }

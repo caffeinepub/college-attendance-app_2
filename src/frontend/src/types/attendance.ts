@@ -23,7 +23,7 @@ export interface AttendanceRecord {
   status: AttendanceStatus;
   staffUsername: string;
   dept?: string;
-  year?: number;
+  year?: bigint;
 }
 
 export interface StudentAttendanceSummary {

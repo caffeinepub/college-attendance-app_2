@@ -1,0 +1,74 @@
+// Version: 1.0.0
+type AttendanceRecord__539146264 =
+  {
+    date : Text;
+    regNo : RegistrationNumber__595519247;
+    staffUsername : Text;
+    status : AttendanceStatus__250411372;
+    subjectId : SubjectId__1038006670
+  };
+type AttendanceStatus__250411372 = {#absent; #onDuty; #present};
+type Data__236546928<K, V> =
+  {var count : Nat__1049140820; kvs : [var ?(K, V)]};
+type Internal__554968229<K, V> =
+  {children : [var ?Node__733231314<K, V>]; data : Data__236546928<K, V>};
+type Leaf__405777811<K, V> = {data : Data__236546928<K, V>};
+type Map__437521162<K, V> = Map__902978828<K, V>;
+type Map__708208903<K, V> =
+  {var root : Node__733231314<K, V>; var size : Nat__1049140820};
+type Map__902978828<K, V> = Map__708208903<K, V>;
+type Nat__1049140820 = Nat__920180692;
+type Nat__920180692 = Nat;
+type Node__733231314<K, V> =
+  {#internal : Internal__554968229<K, V>; #leaf : Leaf__405777811<K, V>};
+type RegistrationNumber__595519247 = Text;
+type SessionToken__896289053 = Text;
+type StaffAccount__812230231 = {password : Text; username : Text};
+type Student__789849347 =
+  {name : Text; registrationNumber : RegistrationNumber__595519247};
+type SubjectId__1038006670 = Text;
+type Subject__1013351438 = {id : SubjectId__1038006670; name : Text};
+type UserProfile__518778815 = {role : Text; username : Text};
+type UserRole__732471048 = {#admin; #guest; #user};
+actor {
+  stable accessControlState :
+    {
+      var adminAssigned : Bool;
+      userRoles : Map__437521162<Principal, UserRole__732471048>
+    };
+  stable attendanceRecords :
+    {
+      var root : Node__733231314<Text, AttendanceRecord__539146264>;
+      var size : Nat__1049140820
+    };
+  stable principalToUsername :
+    {var root : Node__733231314<Principal, Text>; var size : Nat__1049140820};
+  stable sessions :
+    {
+      var root : Node__733231314<SessionToken__896289053, Text>;
+      var size : Nat__1049140820
+    };
+  stable staffAccounts :
+    {
+      var root : Node__733231314<Text, StaffAccount__812230231>;
+      var size : Nat__1049140820
+    };
+  stable students :
+    {
+      var root :
+        Node__733231314<RegistrationNumber__595519247, Student__789849347>;
+      var size : Nat__1049140820
+    };
+  stable subjects :
+    {
+      var root : Node__733231314<SubjectId__1038006670, Subject__1013351438>;
+      var size : Nat__1049140820
+    };
+  stable userProfiles :
+    {
+      var root : Node__733231314<Principal, UserProfile__518778815>;
+      var size : Nat__1049140820
+    };
+  stable usernameToPrincipal :
+    {var root : Node__733231314<Text, Principal>; var size : Nat__1049140820}
+};

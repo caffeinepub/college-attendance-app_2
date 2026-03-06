@@ -11,13 +11,19 @@ export default function HomePage({
   onStudentClick,
 }: HomePageProps) {
   return (
-    <div className="mesh-bg min-h-screen flex flex-col">
+    <div
+      className="min-h-screen flex flex-col"
+      style={{
+        background:
+          "linear-gradient(160deg, #38bdf8 0%, #0ea5e9 40%, #7dd3fc 100%)",
+      }}
+    >
       {/* Header */}
       <header className="px-6 py-5 flex items-center gap-3">
         <div className="w-9 h-9 rounded-lg bg-primary flex items-center justify-center shadow-card">
           <GraduationCap className="w-5 h-5 text-primary-foreground" />
         </div>
-        <span className="font-display font-semibold text-lg text-foreground tracking-tight">
+        <span className="font-display font-semibold text-lg text-black tracking-tight">
           AttendanceIQ
         </span>
       </header>
@@ -34,7 +40,7 @@ export default function HomePage({
             <span className="w-1.5 h-1.5 rounded-full bg-primary inline-block" />
             Academic Attendance Portal
           </div>
-          <h1 className="font-display text-4xl sm:text-5xl font-bold text-foreground leading-tight mb-3">
+          <h1 className="font-display text-4xl sm:text-5xl font-bold text-black leading-tight mb-3">
             Track Attendance,
             <br />
             <span className="text-primary">Achieve Excellence</span>
@@ -87,26 +93,26 @@ export default function HomePage({
             whileHover={{ y: -4, transition: { duration: 0.2 } }}
             whileTap={{ scale: 0.98 }}
             onClick={onStudentClick}
-            className="group relative overflow-hidden rounded-2xl bg-card border border-border text-card-foreground p-7 text-left shadow-card hover:shadow-card-hover transition-shadow cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+            className="group relative overflow-hidden rounded-2xl bg-white/30 border border-white/50 text-black p-7 text-left shadow-card hover:shadow-card-hover transition-shadow cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
           >
             {/* Decorative accent */}
             <div className="absolute -right-6 -top-6 w-28 h-28 rounded-full bg-accent/10" />
             <div className="absolute right-4 -bottom-10 w-36 h-36 rounded-full bg-primary/5" />
 
             <div className="relative z-10">
-              <div className="w-12 h-12 rounded-xl bg-secondary flex items-center justify-center mb-5 group-hover:bg-accent/20 transition-colors">
-                <BookOpen className="w-6 h-6 text-primary" />
+              <div className="w-12 h-12 rounded-xl bg-white/30 flex items-center justify-center mb-5 group-hover:bg-white/50 transition-colors">
+                <BookOpen className="w-6 h-6 text-black" />
               </div>
               <h2 className="font-display text-2xl font-bold mb-2">
                 Student Lookup
               </h2>
-              <p className="text-muted-foreground text-sm leading-relaxed mb-6">
+              <p className="text-black/70 text-sm leading-relaxed mb-6">
                 Check your attendance percentage across all subjects. No login
                 required.
               </p>
-              <div className="flex items-center gap-2 text-sm font-medium text-primary">
+              <div className="flex items-center gap-2 text-sm font-medium text-black">
                 View Attendance
-                <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform text-primary" />
+                <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform text-black" />
               </div>
             </div>
           </motion.button>
@@ -115,13 +121,13 @@ export default function HomePage({
 
       {/* Footer */}
       <footer className="py-5 text-center">
-        <p className="text-muted-foreground text-xs">
+        <p className="text-black/70 text-xs">
           © {new Date().getFullYear()}.{" "}
           <a
             href={`https://caffeine.ai?utm_source=caffeine-footer&utm_medium=referral&utm_content=${encodeURIComponent(window.location.hostname)}`}
             target="_blank"
             rel="noopener noreferrer"
-            className="hover:text-foreground transition-colors"
+            className="hover:text-black transition-colors"
           >
             Built with ♥ using caffeine.ai
           </a>

@@ -1,0 +1,85 @@
+// Version: 1.0.0
+type AttendanceRecord__852829031 =
+  {
+    date : Text;
+    dept : Text;
+    regNo : Text;
+    staffUsername : Text;
+    status : AttendanceStatus__244828072;
+    subjectId : Text;
+    year : Nat
+  };
+type AttendanceStatus__244828072 = {#absent; #onDuty; #present};
+type Data__236546928<K, V> =
+  {var count : Nat__1049140820; kvs : [var ?(K, V)]};
+type Internal__554968229<K, V> =
+  {children : [var ?Node__733231314<K, V>]; data : Data__236546928<K, V>};
+type Leaf__405777811<K, V> = {data : Data__236546928<K, V>};
+type LegacyAttendanceRecord__604795807 =
+  {
+    date : Text;
+    regNo : Text;
+    staffUsername : Text;
+    status : AttendanceStatus__244828072;
+    subjectId : Text
+  };
+type LegacyStaffAccount__220192257 = {password : Text; username : Text};
+type LegacyStudent__33511927 = {name : Text; registrationNumber : Text};
+type LegacySubjectEntry__623302771 = {id : Text; name : Text};
+type Map__437521162<K, V> = Map__902978828<K, V>;
+type Map__708208903<K, V> =
+  {var root : Node__733231314<K, V>; var size : Nat__1049140820};
+type Map__902978828<K, V> = Map__708208903<K, V>;
+type Nat__1049140820 = Nat__920180692;
+type Nat__920180692 = Nat;
+type Node__733231314<K, V> =
+  {#internal : Internal__554968229<K, V>; #leaf : Leaf__405777811<K, V>};
+type Subject__697234594 = {id : Text; name : Text};
+type UserProfile__491224006 = {role : Text; username : Text};
+type UserRole__521596351 = {#admin; #guest; #user};
+actor {
+  stable accessControlState :
+    {
+      var adminAssigned : Bool;
+      userRoles : Map__437521162<Principal, UserRole__521596351>
+    };
+  stable accounts :
+    {var root : Node__733231314<Text, Text>; var size : Nat__1049140820};
+  stable attendanceRecords :
+    {
+      var root : Node__733231314<Text, LegacyAttendanceRecord__604795807>;
+      var size : Nat__1049140820
+    };
+  stable principalToUsername :
+    {var root : Node__733231314<Principal, Text>; var size : Nat__1049140820};
+  stable var recordList : [AttendanceRecord__852829031];
+  stable sessions :
+    {var root : Node__733231314<Text, Text>; var size : Nat__1049140820};
+  stable staffAccounts :
+    {
+      var root : Node__733231314<Text, LegacyStaffAccount__220192257>;
+      var size : Nat__1049140820
+    };
+  stable students :
+    {
+      var root : Node__733231314<Text, LegacyStudent__33511927>;
+      var size : Nat__1049140820
+    };
+  stable subjects :
+    {
+      var root : Node__733231314<Text, LegacySubjectEntry__623302771>;
+      var size : Nat__1049140820
+    };
+  stable subjectsStore :
+    {
+      var root : Node__733231314<Text, [Subject__697234594]>;
+      var size : Nat__1049140820
+    };
+  stable userProfiles :
+    {
+      var root : Node__733231314<Principal, UserProfile__491224006>;
+      var size : Nat__1049140820
+    };
+  stable usernameToPrincipal :
+    {var root : Node__733231314<Text, Principal>; var size : Nat__1049140820}
+};

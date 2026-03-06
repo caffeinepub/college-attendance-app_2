@@ -15,13 +15,15 @@ import {
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useMemo, useState } from "react";
-import { useStudentAttendanceRecords } from "../hooks/useQueries";
+import {
+  useGetSubjectsForDept,
+  useStudentAttendanceRecords,
+} from "../hooks/useQueries";
 import { AttendanceStatus } from "../types/attendance";
 import {
   DEPT_CONFIG,
   YEAR_CODE,
   getDeptYearLabel,
-  getSubjectsForDept,
   isValidRegNoForDept,
 } from "../utils/attendanceData";
 
@@ -102,7 +104,7 @@ export default function StudentLookupPage({
   const [submittedReg, setSubmittedReg] = useState<string | null>(null);
   const [validationError, setValidationError] = useState<string | null>(null);
 
-  const subjects = useMemo(() => getSubjectsForDept(dept), [dept]);
+  const { data: subjects = [] } = useGetSubjectsForDept(dept);
 
   const {
     data: rawRecords,
@@ -636,14 +638,14 @@ export default function StudentLookupPage({
                   <XCircle className="w-5 h-5 mt-0.5 shrink-0" />
                 )}
                 <div>
-                  <p className="font-semibold">
+                  <p className="font-semibold !text-black">
                     {overallPercentage >= 75
                       ? "Attendance Eligible"
                       : overallPercentage >= 60
                         ? "Borderline — Improvement Needed"
                         : "Below Required Threshold (75%)"}
                   </p>
-                  <p className="text-xs opacity-80 mt-0.5">
+                  <p className="text-xs mt-0.5 !text-black">
                     {overallPercentage >= 75
                       ? "Your attendance meets the 75% requirement."
                       : overallPercentage >= 60
@@ -654,8 +656,8 @@ export default function StudentLookupPage({
               </div>
 
               {/* On-duty note */}
-              <div className="rounded-xl p-3 bg-onduty/8 border border-onduty/20 flex items-center gap-2.5 text-xs text-onduty-foreground">
-                <ShieldCheck className="w-4 h-4 shrink-0" />
+              <div className="rounded-xl p-3 bg-onduty/8 border border-onduty/20 flex items-center gap-2.5 text-xs !text-black">
+                <ShieldCheck className="w-4 h-4 shrink-0 text-onduty-foreground" />
                 <span>
                   On-Duty days are shown separately and are{" "}
                   <strong>not counted</strong> in your attendance percentage.

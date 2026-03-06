@@ -28,21 +28,18 @@ import {
   XCircle,
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
-import { useCallback, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import {
   useAttendanceByStaff,
+  useGetSubjectsForDept,
   useLogout,
   useMarkAttendance,
+  useSaveSubjectsForDept,
 } from "../hooks/useQueries";
 import { AttendanceStatus } from "../types/attendance";
 import type { SessionToken } from "../types/attendance";
-import {
-  getDeptYearLabel,
-  getStudentsForDept,
-  getSubjectsForDept,
-  saveSubjectsForDept,
-} from "../utils/attendanceData";
+import { getDeptYearLabel, getStudentsForDept } from "../utils/attendanceData";
 import type { SubjectEntry } from "../utils/attendanceData";
 
 interface StaffDashboardPageProps {
@@ -666,38 +663,70 @@ function ViewRecordsTab({
 // ── Manage Subjects Tab ───────────────────────────────────────────────────────
 
 function ManageSubjectsTab({
+  token,
   dept,
   subjects,
-  onSubjectsChange,
 }: {
+  token: SessionToken;
   dept: string;
   subjects: SubjectEntry[];
-  onSubjectsChange: () => void;
 }) {
   const [newSubjectName, setNewSubjectName] = useState("");
+  const { mutate: saveSubjects, isPending: isSaving } =
+    useSaveSubjectsForDept();
 
   const handleAddSubject = () => {
     const name = newSubjectName.trim();
     if (!name) return;
     const id = `SUBJ_${Date.now()}`;
     const updated = [...subjects, { id, name }];
-    saveSubjectsForDept(dept, updated);
-    setNewSubjectName("");
-    onSubjectsChange();
-    toast.success(`Subject "${name}" added`);
+    saveSubjects(
+      { token, deptKey: dept, subjects: updated },
+      {
+        onSuccess: () => {
+          setNewSubjectName("");
+          toast.success(`Subject "${name}" added`);
+        },
+        onError: (err) => {
+          toast.error("Failed to add subject", {
+            description: (err as Error)?.message,
+          });
+        },
+      },
+    );
   };
 
   const handleDeleteSubject = (id: string) => {
     const updated = subjects.filter((s) => s.id !== id);
-    saveSubjectsForDept(dept, updated);
-    onSubjectsChange();
-    toast.success("Subject removed");
+    saveSubjects(
+      { token, deptKey: dept, subjects: updated },
+      {
+        onSuccess: () => {
+          toast.success("Subject removed");
+        },
+        onError: (err) => {
+          toast.error("Failed to remove subject", {
+            description: (err as Error)?.message,
+          });
+        },
+      },
+    );
   };
 
   const handleClearAll = () => {
-    saveSubjectsForDept(dept, []);
-    onSubjectsChange();
-    toast.success("All subjects cleared");
+    saveSubjects(
+      { token, deptKey: dept, subjects: [] },
+      {
+        onSuccess: () => {
+          toast.success("All subjects cleared");
+        },
+        onError: (err) => {
+          toast.error("Failed to clear subjects", {
+            description: (err as Error)?.message,
+          });
+        },
+      },
+    );
   };
 
   return (
@@ -724,10 +753,14 @@ function ManageSubjectsTab({
           <Button
             data-ocid="staff.subjects.add_button"
             onClick={handleAddSubject}
-            disabled={!newSubjectName.trim()}
+            disabled={!newSubjectName.trim() || isSaving}
             className="h-10 px-4 rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 shrink-0"
           >
-            <Plus className="w-4 h-4 mr-1.5" />
+            {isSaving ? (
+              <Loader2 className="w-4 h-4 mr-1.5 animate-spin" />
+            ) : (
+              <Plus className="w-4 h-4 mr-1.5" />
+            )}
             Add
           </Button>
         </div>
@@ -817,16 +850,7 @@ export default function StaffDashboardPage({
 }: StaffDashboardPageProps) {
   const { mutate: logout, isPending: isLoggingOut } = useLogout();
 
-  // Force re-render when subjects change
-  const [subjectRevision, setSubjectRevision] = useState(0);
-  const handleSubjectsChange = useCallback(() => {
-    setSubjectRevision((r) => r + 1);
-  }, []);
-
-  const subjects = useMemo(() => {
-    void subjectRevision; // track revision
-    return getSubjectsForDept(dept);
-  }, [dept, subjectRevision]);
+  const { data: subjects = [] } = useGetSubjectsForDept(dept);
 
   const deptYearLabel = getDeptYearLabel(dept, year);
 
@@ -934,9 +958,9 @@ export default function StaffDashboardPage({
 
               <TabsContent value="subjects" className="mt-0">
                 <ManageSubjectsTab
+                  token={token}
                   dept={dept}
                   subjects={subjects}
-                  onSubjectsChange={handleSubjectsChange}
                 />
               </TabsContent>
             </Tabs>
