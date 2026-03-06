@@ -6,8 +6,11 @@ import Int "mo:core/Int";
 import AccessControl "authorization/access-control";
 import MixinAuthorization "authorization/MixinAuthorization";
 import Principal "mo:core/Principal";
+import Runtime "mo:core/Runtime";
 
-actor {
+
+
+persistent actor {
   // ── Types ─────────────────────────────────────────────────────
   type AttendanceStatus = { #present; #absent; #onDuty };
   type Subject = { id : Text; name : Text };
@@ -44,24 +47,30 @@ actor {
   include MixinAuthorization(accessControlState);
 
   // ── Persistent state ──────────────────────────────────────────
-  let accounts = Map.empty<Text, Text>();
-  let sessions = Map.empty<Text, Text>();
-  let subjectsStore = Map.empty<Text, [Subject]>();
+  var accounts = Map.empty<Text, Text>();
+  var sessions = Map.empty<Text, Text>();
+  var subjectsStore = Map.empty<Text, [Subject]>();
   var recordList : [AttendanceRecord] = [];
   let userProfiles = Map.empty<Principal, UserProfile>();
 
+  // Map session tokens to principals for authorization integration
+  var sessionToPrincipal = Map.empty<Text, Principal>();
+
   // ── Legacy stable vars declared to allow upgrade migration ────
-  // These existed in the previous canister version. Declaring them here
-  // (even unused) satisfies the compatibility checker so the upgrade
-  // does not require an explicit migration function.
-  let students = Map.empty<Text, LegacyStudent>();
-  let subjects = Map.empty<Text, LegacySubjectEntry>();
-  let staffAccounts = Map.empty<Text, LegacyStaffAccount>();
-  let attendanceRecords = Map.empty<Text, LegacyAttendanceRecord>();
-  let principalToUsername = Map.empty<Principal, Text>();
-  let usernameToPrincipal = Map.empty<Text, Principal>();
+  var students = Map.empty<Text, LegacyStudent>();
+  var subjects = Map.empty<Text, LegacySubjectEntry>();
+  var staffAccounts = Map.empty<Text, LegacyStaffAccount>();
+  var attendanceRecords = Map.empty<Text, LegacyAttendanceRecord>();
+  var principalToUsername = Map.empty<Principal, Text>();
+  var usernameToPrincipal = Map.empty<Text, Principal>();
 
   // ── Initialize default staff account ─────────────────────────
+  system func postupgrade() {
+    if (not accounts.containsKey("staff")) {
+      accounts.add("staff", "2026");
+    };
+  };
+
   do {
     if (not accounts.containsKey("staff")) {
       accounts.add("staff", "2026");
@@ -76,8 +85,25 @@ actor {
     userProfiles.get(caller);
   };
 
+  public shared ({ caller }) func saveCallerUserProfile(profile : UserProfile) : async () {
+    if (caller.isAnonymous()) {
+      Runtime.trap("Unauthorized: Anonymous users cannot save profiles");
+    };
+    if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
+      Runtime.trap("Unauthorized: Only users can save profiles");
+    };
+    userProfiles.add(caller, profile);
+  };
+
+  public query ({ caller }) func getUserProfile(user : Principal) : async ?UserProfile {
+    if (caller != user and not AccessControl.isAdmin(accessControlState, caller)) {
+      Runtime.trap("Unauthorized: Can only view your own profile");
+    };
+    userProfiles.get(user);
+  };
+
   // ── Staff Authentication ──────────────────────────────────────
-  public func staffLogin(username : Text, password : Text) : async { #ok : Text; #err : Text } {
+  public shared ({ caller }) func staffLogin(username : Text, password : Text) : async { #ok : Text; #err : Text } {
     switch (accounts.get(username)) {
       case null { #err("Invalid username or password") };
       case (?stored) {
@@ -85,6 +111,7 @@ actor {
           let t : Int = Time.now();
           let token = username # "_" # t.toText();
           sessions.add(token, username);
+          sessionToPrincipal.add(token, caller);
           #ok(token);
         } else {
           #err("Invalid username or password");
@@ -93,7 +120,13 @@ actor {
     };
   };
 
-  public func staffCreateAccount(username : Text, password : Text) : async { #ok; #err : Text } {
+  public shared func staffCreateAccount(username : Text, password : Text) : async { #ok; #err : Text } {
+    if (username.size() < 3) {
+      return #err("Username must be at least 3 characters long");
+    };
+    if (password.size() < 4) {
+      return #err("Password must be at least 4 characters long");
+    };
     if (accounts.containsKey(username)) {
       #err("Username \"" # username # "\" is already taken. Choose a different one.")
     } else {
@@ -102,11 +135,18 @@ actor {
     };
   };
 
-  public func staffLogout(token : Text) : async () {
+  public shared func staffLogout(token : Text) : async () {
     sessions.remove(token);
+    sessionToPrincipal.remove(token);
+  };
+
+  // ── Helper: validate session token only ──────────────────────
+  private func validateSession(token : Text) : ?Text {
+    sessions.get(token);
   };
 
   // ── Subjects ──────────────────────────────────────────────────
+  // Public query - no auth required so any device can load subjects
   public query func getSubjectsForDept(deptKey : Text) : async [Subject] {
     switch (subjectsStore.get(deptKey)) {
       case null { [] };
@@ -114,8 +154,9 @@ actor {
     };
   };
 
-  public func saveSubjectsForDept(token : Text, deptKey : Text, subjectsArg : [Subject]) : async { #ok; #err : Text } {
-    switch (sessions.get(token)) {
+  // Requires valid session token only
+  public shared func saveSubjectsForDept(token : Text, deptKey : Text, subjectsArg : [Subject]) : async { #ok; #err : Text } {
+    switch (validateSession(token)) {
       case null { #err("Invalid or expired session") };
       case (?_) {
         subjectsStore.add(deptKey, subjectsArg);
@@ -125,7 +166,8 @@ actor {
   };
 
   // ── Attendance ────────────────────────────────────────────────
-  public func markAttendance(
+  // Requires valid session token only
+  public shared func markAttendance(
     token : Text,
     subjectId : Text,
     date : Text,
@@ -133,7 +175,7 @@ actor {
     dept : Text,
     year : Nat,
   ) : async { #ok; #err : Text } {
-    switch (sessions.get(token)) {
+    switch (validateSession(token)) {
       case null { #err("Invalid or expired session") };
       case (?username) {
         let filtered = recordList.filter(
@@ -160,19 +202,25 @@ actor {
     };
   };
 
+  // Public query - no auth required so any student on any device can view attendance
   public query func getStudentAttendance(regNo : Text, dept : Text, year : Nat) : async [AttendanceRecord] {
-    recordList.filter(func(r : AttendanceRecord) : Bool {
-      r.regNo == regNo and r.dept == dept and r.year == year
-    });
+    recordList.filter<AttendanceRecord>(
+      func(r : AttendanceRecord) : Bool {
+        r.regNo == regNo and r.dept == dept and r.year == year
+      },
+    );
   };
 
-  public func getAttendanceByStaff(token : Text, dept : Text, year : Nat) : async { #ok : [AttendanceRecord]; #err : Text } {
-    switch (sessions.get(token)) {
+  // Requires valid session token only
+  public shared func getAttendanceByStaff(token : Text, dept : Text, year : Nat) : async { #ok : [AttendanceRecord]; #err : Text } {
+    switch (validateSession(token)) {
       case null { #err("Invalid or expired session") };
       case (?username) {
-        let records = recordList.filter(func(r : AttendanceRecord) : Bool {
-          r.staffUsername == username and r.dept == dept and r.year == year
-        });
+        let records = recordList.filter(
+          func(r : AttendanceRecord) : Bool {
+            r.staffUsername == username and r.dept == dept and r.year == year
+          },
+        );
         #ok(records);
       };
     };

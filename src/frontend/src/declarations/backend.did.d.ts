@@ -46,12 +46,14 @@ export interface _SERVICE {
     Array<AttendanceRecord>
   >,
   'getSubjectsForDept' : ActorMethod<[string], Array<Subject>>,
+  'getUserProfile' : ActorMethod<[Principal], [] | [UserProfile]>,
   'isCallerAdmin' : ActorMethod<[], boolean>,
   'markAttendance' : ActorMethod<
     [string, string, string, Array<AttendanceInput>, string, bigint],
     { 'ok' : null } |
       { 'err' : string }
   >,
+  'saveCallerUserProfile' : ActorMethod<[UserProfile], undefined>,
   'saveSubjectsForDept' : ActorMethod<
     [string, string, Array<Subject>],
     { 'ok' : null } |

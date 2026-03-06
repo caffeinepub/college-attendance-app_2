@@ -30,8 +30,12 @@ export function useGetSubjectsForDept(deptKey: string) {
     queryKey: ["subjects", deptKey],
     queryFn: async (): Promise<SubjectEntry[]> => {
       if (!actor || !deptKey) return [];
-      const result = await actor.getSubjectsForDept(deptKey);
-      return result as SubjectEntry[];
+      try {
+        const result = await actor.getSubjectsForDept(deptKey);
+        return result as SubjectEntry[];
+      } catch {
+        return [];
+      }
     },
     enabled: !!actor && !isFetching && !!deptKey,
   });
@@ -105,16 +109,20 @@ export function useStudentAttendanceRecords(
     queryKey: ["studentRecords", regNo, deptKey, year],
     queryFn: async (): Promise<AttendanceRecord[]> => {
       if (!actor || !regNo || !deptKey || year === undefined) return [];
-      const result = await actor.getStudentAttendance(
-        regNo,
-        deptKey,
-        BigInt(year),
-      );
-      return result.map((r) => ({
-        ...r,
-        status: r.status as unknown as AttendanceStatus,
-        year: r.year,
-      })) as AttendanceRecord[];
+      try {
+        const result = await actor.getStudentAttendance(
+          regNo,
+          deptKey,
+          BigInt(year),
+        );
+        return result.map((r) => ({
+          ...r,
+          status: r.status as unknown as AttendanceStatus,
+          year: r.year,
+        })) as AttendanceRecord[];
+      } catch {
+        return [];
+      }
     },
     enabled: !!actor && !isFetching && !!regNo,
     retry: false,

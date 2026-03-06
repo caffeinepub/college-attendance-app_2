@@ -12,6 +12,7 @@ import {
 import { AnimatePresence, motion } from "motion/react";
 import { useState } from "react";
 import { toast } from "sonner";
+import { useActor } from "../hooks/useActor";
 import { useCreateStaffAccount, useLogin } from "../hooks/useQueries";
 
 interface StaffLoginPageProps {
@@ -38,6 +39,7 @@ export default function StaffLoginPage({
   const [confirmPassword, setConfirmPassword] = useState("");
   const [createError, setCreateError] = useState("");
 
+  const { isFetching: isConnecting } = useActor();
   const { mutate: login, isPending: isLoggingIn } = useLogin();
   const { mutate: createAccount, isPending: isCreating } =
     useCreateStaffAccount();
@@ -58,8 +60,10 @@ export default function StaffLoginPage({
         },
         onError: () => {
           setHasError(true);
-          toast.error("Invalid credentials", {
-            description: "Check your username and password and try again.",
+          toast.error("Login failed", {
+            description: isConnecting
+              ? "Still connecting to server, please wait a moment and try again."
+              : "Check your username and password and try again.",
           });
         },
       },
@@ -75,6 +79,10 @@ export default function StaffLoginPage({
 
     if (!trimmedUser || !trimmedPass || !trimmedConfirm) {
       setCreateError("All fields are required.");
+      return;
+    }
+    if (trimmedUser.length < 3) {
+      setCreateError("Username must be at least 3 characters.");
       return;
     }
     if (trimmedPass !== trimmedConfirm) {
@@ -100,9 +108,12 @@ export default function StaffLoginPage({
           setUsername(trimmedUser);
         },
         onError: (err: Error) => {
-          setCreateError(err.message || "Could not create account.");
+          const msg = err.message?.includes("Not connected")
+            ? "Still connecting to server, please wait a moment and try again."
+            : err.message || "Could not create account.";
+          setCreateError(msg);
           toast.error("Account creation failed", {
-            description: err.message,
+            description: msg,
           });
         },
       },
@@ -275,11 +286,19 @@ export default function StaffLoginPage({
                       type="submit"
                       data-ocid="stafflogin.submit_button"
                       disabled={
-                        isLoggingIn || !username.trim() || !password.trim()
+                        isLoggingIn ||
+                        isConnecting ||
+                        !username.trim() ||
+                        !password.trim()
                       }
                       className="w-full h-11 rounded-xl text-base font-medium bg-primary hover:bg-primary/90 text-primary-foreground shadow-card mt-1"
                     >
-                      {isLoggingIn ? (
+                      {isConnecting ? (
+                        <>
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          Connecting…
+                        </>
+                      ) : isLoggingIn ? (
                         <>
                           <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                           Signing in…
@@ -288,6 +307,14 @@ export default function StaffLoginPage({
                         "Sign In"
                       )}
                     </Button>
+                    {isConnecting && (
+                      <p
+                        data-ocid="stafflogin.connecting_state"
+                        className="text-center text-xs text-muted-foreground mt-2"
+                      >
+                        Connecting to server…
+                      </p>
+                    )}
                   </form>
                 </div>
 
@@ -346,12 +373,15 @@ export default function StaffLoginPage({
                             setNewUsername(e.target.value);
                             setCreateError("");
                           }}
-                          placeholder="Choose a username"
+                          placeholder="Choose a username (min. 3 chars)"
                           autoComplete="username"
                           autoFocus
                           className="pl-10 h-11 rounded-xl border-border bg-background focus-visible:ring-primary"
                         />
                       </div>
+                      <p className="text-xs text-muted-foreground">
+                        Minimum 3 characters
+                      </p>
                     </div>
 
                     {/* New password */}
@@ -420,13 +450,19 @@ export default function StaffLoginPage({
                       data-ocid="stafflogin.create_submit_button"
                       disabled={
                         isCreating ||
+                        isConnecting ||
                         !newUsername.trim() ||
                         !newPassword.trim() ||
                         !confirmPassword.trim()
                       }
                       className="w-full h-11 rounded-xl text-base font-medium bg-primary hover:bg-primary/90 text-primary-foreground shadow-card mt-1"
                     >
-                      {isCreating ? (
+                      {isConnecting ? (
+                        <>
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          Connecting…
+                        </>
+                      ) : isCreating ? (
                         <>
                           <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                           Creating…
@@ -435,6 +471,14 @@ export default function StaffLoginPage({
                         "Create Account"
                       )}
                     </Button>
+                    {isConnecting && (
+                      <p
+                        data-ocid="stafflogin.create_connecting_state"
+                        className="text-center text-xs text-muted-foreground mt-2"
+                      >
+                        Connecting to server…
+                      </p>
+                    )}
                   </form>
                 </div>
 

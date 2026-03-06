@@ -6,6 +6,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import {
   AlertCircle,
   ArrowLeft,
+  BookOpen,
+  CalendarX,
   CheckCircle2,
   GraduationCap,
   RotateCcw,
@@ -81,6 +83,20 @@ function AttendanceGauge({ percentage }: { percentage: number }) {
   );
 }
 
+// ── Date formatter ────────────────────────────────────────────
+
+function formatDate(dateStr: string): string {
+  try {
+    return new Date(dateStr).toLocaleDateString("en-IN", {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+    });
+  } catch {
+    return dateStr;
+  }
+}
+
 // ── Per-subject stats type ────────────────────────────────────
 
 interface SubjectStats {
@@ -91,6 +107,106 @@ interface SubjectStats {
   onDutyCount: number;
   totalClasses: number;
   percentage: number;
+}
+
+// ── Missed classes group type ─────────────────────────────────
+
+interface MissedClassGroup {
+  subjectId: string;
+  subjectName: string;
+  dates: string[];
+}
+
+// ── Missed Classes Section ────────────────────────────────────
+
+function MissedClassesSection({
+  groups,
+  totalMissed,
+}: {
+  groups: MissedClassGroup[];
+  totalMissed: number;
+}) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.4, delay: 0.1 }}
+      data-ocid="student.missed_classes_panel"
+      className="bg-card border border-border rounded-xl overflow-hidden shadow-xs"
+    >
+      {/* Section header */}
+      <div className="flex items-center gap-2.5 px-4 py-3 bg-muted/40 border-b border-border">
+        <CalendarX className="w-4 h-4 text-destructive shrink-0" />
+        <h3 className="font-display text-sm font-semibold text-foreground flex-1">
+          Missed Classes
+        </h3>
+        {totalMissed > 0 ? (
+          <Badge className="bg-destructive/15 text-destructive border border-destructive/25 text-xs font-semibold px-2 py-0.5">
+            {totalMissed} {totalMissed === 1 ? "class" : "classes"}
+          </Badge>
+        ) : (
+          <Badge className="bg-success/15 text-success border border-success/25 text-xs font-semibold px-2 py-0.5">
+            0 missed
+          </Badge>
+        )}
+      </div>
+
+      {/* Content */}
+      {totalMissed === 0 ? (
+        <div
+          data-ocid="student.missed_classes_empty_state"
+          className="flex items-center gap-2.5 px-4 py-4 text-sm"
+        >
+          <CheckCircle2 className="w-4 h-4 text-success shrink-0" />
+          <span className="text-success font-medium">No missed classes!</span>
+          <span className="text-black/60 text-xs">
+            Perfect attendance across all subjects.
+          </span>
+        </div>
+      ) : (
+        <div className="divide-y divide-border/60">
+          {groups.map((group, gi) => (
+            <div
+              key={group.subjectId}
+              data-ocid={`student.missed_subject.${gi + 1}`}
+              className="px-4 py-3"
+            >
+              {/* Subject header */}
+              <div className="flex items-center gap-2 mb-2.5">
+                <BookOpen className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                <span className="text-xs font-semibold text-black uppercase tracking-wide">
+                  {group.subjectName}
+                </span>
+                <span className="ml-auto text-[11px] text-muted-foreground font-medium">
+                  {group.dates.length}{" "}
+                  {group.dates.length === 1 ? "absence" : "absences"}
+                </span>
+              </div>
+
+              {/* Date list */}
+              <div className="space-y-1.5 pl-5">
+                {group.dates.map((dateStr, di) => (
+                  <motion.div
+                    key={`${group.subjectId}-${dateStr}`}
+                    data-ocid={`student.missed_date.${gi + 1}.${di + 1}`}
+                    initial={{ opacity: 0, x: -6 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: gi * 0.04 + di * 0.02 }}
+                    className="flex items-center gap-2"
+                  >
+                    <XCircle className="w-3.5 h-3.5 text-destructive shrink-0" />
+                    <span className="text-sm text-black font-medium">
+                      {formatDate(dateStr)}
+                    </span>
+                  </motion.div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </motion.div>
+  );
 }
 
 // ── Main page ─────────────────────────────────────────────────
@@ -125,52 +241,86 @@ export default function StudentLookupPage({
   const deptYearLabel = getDeptYearLabel(dept, year);
 
   // ── Calculate per-subject stats from backend records ─────
-  const { subjectStats, overallPercentage } = useMemo(() => {
-    if (!submittedReg || !rawRecords) {
-      return { subjectStats: [], overallPercentage: 0 };
-    }
+  const { subjectStats, overallPercentage, missedClassGroups, totalMissed } =
+    useMemo(() => {
+      if (!submittedReg || !rawRecords) {
+        return {
+          subjectStats: [],
+          overallPercentage: 0,
+          missedClassGroups: [],
+          totalMissed: 0,
+        };
+      }
 
-    const stats: SubjectStats[] = subjects.map((subj) => {
-      const subjRecords = rawRecords.filter((r) => r.subjectId === subj.id);
+      const stats: SubjectStats[] = subjects.map((subj) => {
+        const subjRecords = rawRecords.filter((r) => r.subjectId === subj.id);
 
-      const presentCount = subjRecords.filter(
-        (r) => r.status === AttendanceStatus.present,
-      ).length;
-      const absentCount = subjRecords.filter(
-        (r) => r.status === AttendanceStatus.absent,
-      ).length;
-      const onDutyCount = subjRecords.filter(
-        (r) => r.status === AttendanceStatus.onDuty,
-      ).length;
-      const totalClasses = presentCount + absentCount + onDutyCount;
+        const presentCount = subjRecords.filter(
+          (r) => r.status === AttendanceStatus.present,
+        ).length;
+        const absentCount = subjRecords.filter(
+          (r) => r.status === AttendanceStatus.absent,
+        ).length;
+        const onDutyCount = subjRecords.filter(
+          (r) => r.status === AttendanceStatus.onDuty,
+        ).length;
+        const totalClasses = presentCount + absentCount + onDutyCount;
 
-      // Percentage = present / (present + absent), on-duty excluded
-      const denominator = presentCount + absentCount;
-      const percentage =
-        denominator === 0 ? 0 : (presentCount / denominator) * 100;
+        // Percentage = present / (present + absent), on-duty excluded
+        const denominator = presentCount + absentCount;
+        const percentage =
+          denominator === 0 ? 0 : (presentCount / denominator) * 100;
+
+        return {
+          subjectId: subj.id,
+          subjectName: subj.name,
+          presentCount,
+          absentCount,
+          onDutyCount,
+          totalClasses,
+          percentage,
+        };
+      });
+
+      // Only include subjects with at least one class recorded
+      const withData = stats.filter((s) => s.totalClasses > 0);
+
+      const totalPresent = withData.reduce((sum, s) => sum + s.presentCount, 0);
+      const totalAbsent = withData.reduce((sum, s) => sum + s.absentCount, 0);
+      const overallDenominator = totalPresent + totalAbsent;
+      const overall =
+        overallDenominator === 0
+          ? 0
+          : (totalPresent / overallDenominator) * 100;
+
+      // ── Build missed-classes groups (absent records only) ──
+      const groups: MissedClassGroup[] = subjects
+        .map((subj) => {
+          const absentDates = rawRecords
+            .filter(
+              (r) =>
+                r.subjectId === subj.id && r.status === AttendanceStatus.absent,
+            )
+            .map((r) => r.date)
+            .sort((a, b) => new Date(a).getTime() - new Date(b).getTime());
+
+          return {
+            subjectId: subj.id,
+            subjectName: subj.name,
+            dates: absentDates,
+          };
+        })
+        .filter((g) => g.dates.length > 0);
+
+      const missed = groups.reduce((sum, g) => sum + g.dates.length, 0);
 
       return {
-        subjectId: subj.id,
-        subjectName: subj.name,
-        presentCount,
-        absentCount,
-        onDutyCount,
-        totalClasses,
-        percentage,
+        subjectStats: withData,
+        overallPercentage: overall,
+        missedClassGroups: groups,
+        totalMissed: missed,
       };
-    });
-
-    // Only include subjects with at least one class recorded
-    const withData = stats.filter((s) => s.totalClasses > 0);
-
-    const totalPresent = withData.reduce((sum, s) => sum + s.presentCount, 0);
-    const totalAbsent = withData.reduce((sum, s) => sum + s.absentCount, 0);
-    const overallDenominator = totalPresent + totalAbsent;
-    const overall =
-      overallDenominator === 0 ? 0 : (totalPresent / overallDenominator) * 100;
-
-    return { subjectStats: withData, overallPercentage: overall };
-  }, [submittedReg, rawRecords, subjects]);
+    }, [submittedReg, rawRecords, subjects]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -618,6 +768,22 @@ export default function StudentLookupPage({
                     </div>
                   </div>
                 </div>
+              </div>
+
+              {/* Missed Classes section */}
+              <div>
+                <h3 className="font-display text-lg font-semibold text-foreground px-1 mb-3">
+                  Missed Classes{" "}
+                  {totalMissed > 0 && (
+                    <span className="text-sm font-normal text-destructive ml-1">
+                      ({totalMissed})
+                    </span>
+                  )}
+                </h3>
+                <MissedClassesSection
+                  groups={missedClassGroups}
+                  totalMissed={totalMissed}
+                />
               </div>
 
               {/* Eligibility note */}

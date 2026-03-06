@@ -53,6 +53,11 @@ export const idlService = IDL.Service({
       ['query'],
     ),
   'getSubjectsForDept' : IDL.Func([IDL.Text], [IDL.Vec(Subject)], ['query']),
+  'getUserProfile' : IDL.Func(
+      [IDL.Principal],
+      [IDL.Opt(UserProfile)],
+      ['query'],
+    ),
   'isCallerAdmin' : IDL.Func([], [IDL.Bool], ['query']),
   'markAttendance' : IDL.Func(
       [
@@ -66,6 +71,7 @@ export const idlService = IDL.Service({
       [IDL.Variant({ 'ok' : IDL.Null, 'err' : IDL.Text })],
       [],
     ),
+  'saveCallerUserProfile' : IDL.Func([UserProfile], [], []),
   'saveSubjectsForDept' : IDL.Func(
       [IDL.Text, IDL.Text, IDL.Vec(Subject)],
       [IDL.Variant({ 'ok' : IDL.Null, 'err' : IDL.Text })],
@@ -129,6 +135,11 @@ export const idlFactory = ({ IDL }) => {
         ['query'],
       ),
     'getSubjectsForDept' : IDL.Func([IDL.Text], [IDL.Vec(Subject)], ['query']),
+    'getUserProfile' : IDL.Func(
+        [IDL.Principal],
+        [IDL.Opt(UserProfile)],
+        ['query'],
+      ),
     'isCallerAdmin' : IDL.Func([], [IDL.Bool], ['query']),
     'markAttendance' : IDL.Func(
         [
@@ -142,6 +153,7 @@ export const idlFactory = ({ IDL }) => {
         [IDL.Variant({ 'ok' : IDL.Null, 'err' : IDL.Text })],
         [],
       ),
+    'saveCallerUserProfile' : IDL.Func([UserProfile], [], []),
     'saveSubjectsForDept' : IDL.Func(
         [IDL.Text, IDL.Text, IDL.Vec(Subject)],
         [IDL.Variant({ 'ok' : IDL.Null, 'err' : IDL.Text })],

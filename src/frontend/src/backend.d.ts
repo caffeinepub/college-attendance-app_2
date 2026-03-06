@@ -51,6 +51,7 @@ export interface backendInterface {
     getCallerUserRole(): Promise<UserRole>;
     getStudentAttendance(regNo: string, dept: string, year: bigint): Promise<Array<AttendanceRecord>>;
     getSubjectsForDept(deptKey: string): Promise<Array<Subject>>;
+    getUserProfile(user: Principal): Promise<UserProfile | null>;
     isCallerAdmin(): Promise<boolean>;
     markAttendance(token: string, subjectId: string, date: string, attendanceList: Array<AttendanceInput>, dept: string, year: bigint): Promise<{
         __kind__: "ok";
@@ -59,7 +60,8 @@ export interface backendInterface {
         __kind__: "err";
         err: string;
     }>;
-    saveSubjectsForDept(token: string, deptKey: string, subjects: Array<Subject>): Promise<{
+    saveCallerUserProfile(profile: UserProfile): Promise<void>;
+    saveSubjectsForDept(token: string, deptKey: string, subjectsArg: Array<Subject>): Promise<{
         __kind__: "ok";
         ok: null;
     } | {

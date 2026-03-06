@@ -134,6 +134,7 @@ export interface backendInterface {
     getCallerUserRole(): Promise<UserRole>;
     getStudentAttendance(regNo: string, dept: string, year: bigint): Promise<Array<AttendanceRecord>>;
     getSubjectsForDept(deptKey: string): Promise<Array<Subject>>;
+    getUserProfile(user: Principal): Promise<UserProfile | null>;
     isCallerAdmin(): Promise<boolean>;
     markAttendance(token: string, subjectId: string, date: string, attendanceList: Array<AttendanceInput>, dept: string, year: bigint): Promise<{
         __kind__: "ok";
@@ -142,7 +143,8 @@ export interface backendInterface {
         __kind__: "err";
         err: string;
     }>;
-    saveSubjectsForDept(token: string, deptKey: string, subjects: Array<Subject>): Promise<{
+    saveCallerUserProfile(profile: UserProfile): Promise<void>;
+    saveSubjectsForDept(token: string, deptKey: string, subjectsArg: Array<Subject>): Promise<{
         __kind__: "ok";
         ok: null;
     } | {
@@ -272,6 +274,20 @@ export class Backend implements backendInterface {
             return result;
         }
     }
+    async getUserProfile(arg0: Principal): Promise<UserProfile | null> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.getUserProfile(arg0);
+                return from_candid_opt_n9(this._uploadFile, this._downloadFile, result);
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.getUserProfile(arg0);
+            return from_candid_opt_n9(this._uploadFile, this._downloadFile, result);
+        }
+    }
     async isCallerAdmin(): Promise<boolean> {
         if (this.processError) {
             try {
@@ -304,6 +320,20 @@ export class Backend implements backendInterface {
         } else {
             const result = await this.actor.markAttendance(arg0, arg1, arg2, to_candid_vec_n12(this._uploadFile, this._downloadFile, arg3), arg4, arg5);
             return from_candid_variant_n17(this._uploadFile, this._downloadFile, result);
+        }
+    }
+    async saveCallerUserProfile(arg0: UserProfile): Promise<void> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.saveCallerUserProfile(arg0);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.saveCallerUserProfile(arg0);
+            return result;
         }
     }
     async saveSubjectsForDept(arg0: string, arg1: string, arg2: Array<Subject>): Promise<{
