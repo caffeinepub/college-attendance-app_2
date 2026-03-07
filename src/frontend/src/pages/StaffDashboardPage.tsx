@@ -19,6 +19,7 @@ import {
   CheckCircle2,
   ClipboardList,
   GraduationCap,
+  LayoutGrid,
   Loader2,
   LogOut,
   Plus,
@@ -30,6 +31,7 @@ import {
 import { AnimatePresence, motion } from "motion/react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
+import FloatingDotsBackground from "../components/FloatingDotsBackground";
 import {
   useAttendanceByStaff,
   useGetSubjectsForDept,
@@ -840,6 +842,292 @@ function ManageSubjectsTab({
   );
 }
 
+// ── Daily Summary Tab ─────────────────────────────────────────────────────────
+
+function DailySummaryTab({
+  token,
+  dept,
+  year,
+  subjects,
+}: {
+  token: SessionToken;
+  dept: string;
+  year: number;
+  subjects: SubjectEntry[];
+}) {
+  const {
+    data: records,
+    isLoading,
+    isError,
+  } = useAttendanceByStaff(token, dept, year);
+
+  const [selectedDate, setSelectedDate] = useState<string>(todayDate());
+
+  const students = useMemo(() => getStudentsForDept(dept, year), [dept, year]);
+
+  // Build a map: regNo -> subjectId -> status for the selected date
+  const summaryMatrix = useMemo(() => {
+    if (!records) return {};
+    const dayRecords = records.filter((r) => r.date === selectedDate);
+    const matrix: Record<string, Record<string, AttendanceStatus>> = {};
+    for (const student of students) {
+      matrix[student] = {};
+    }
+    for (const rec of dayRecords) {
+      if (matrix[rec.regNo]) {
+        matrix[rec.regNo][rec.subjectId] = rec.status;
+      }
+    }
+    return matrix;
+  }, [records, selectedDate, students]);
+
+  // Count totals per subject
+  const subjectTotals = useMemo(() => {
+    const totals: Record<
+      string,
+      { present: number; absent: number; onDuty: number }
+    > = {};
+    for (const subj of subjects) {
+      totals[subj.id] = { present: 0, absent: 0, onDuty: 0 };
+    }
+    for (const regNo of students) {
+      const row = summaryMatrix[regNo] ?? {};
+      for (const subj of subjects) {
+        const status = row[subj.id];
+        if (status === AttendanceStatus.present) totals[subj.id].present += 1;
+        else if (status === AttendanceStatus.onDuty)
+          totals[subj.id].onDuty += 1;
+        else if (status === AttendanceStatus.absent)
+          totals[subj.id].absent += 1;
+      }
+    }
+    return totals;
+  }, [summaryMatrix, students, subjects]);
+
+  const hasAnyRecords = useMemo(() => {
+    return students.some((regNo) => {
+      const row = summaryMatrix[regNo] ?? {};
+      return Object.keys(row).length > 0;
+    });
+  }, [summaryMatrix, students]);
+
+  if (isLoading) {
+    return (
+      <div data-ocid="staff.daily_summary.loading_state" className="space-y-3">
+        <Skeleton className="h-11 w-full rounded-xl" />
+        {[1, 2, 3].map((i) => (
+          <Skeleton key={i} className="h-10 w-full rounded-lg" />
+        ))}
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <div
+        data-ocid="staff.daily_summary.error_state"
+        className="flex flex-col items-center gap-3 py-16 text-center"
+      >
+        <AlertCircle className="w-10 h-10 text-destructive/60" />
+        <p className="text-black text-sm">
+          Failed to load records. Please try again.
+        </p>
+      </div>
+    );
+  }
+
+  if (subjects.length === 0) {
+    return (
+      <div
+        data-ocid="staff.daily_summary.empty_state"
+        className="flex flex-col items-center gap-4 py-16 text-center"
+      >
+        <div className="w-14 h-14 rounded-2xl bg-muted flex items-center justify-center">
+          <BookOpen className="w-7 h-7 text-muted-foreground/60" />
+        </div>
+        <div>
+          <p className="font-medium text-foreground mb-1">No Subjects Added</p>
+          <p className="text-black text-sm max-w-xs">
+            Go to the <strong>Manage Subjects</strong> tab to add subjects for
+            this department first.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* Date picker */}
+      <div className="bg-card border border-border rounded-xl p-4 shadow-xs">
+        <div className="space-y-2">
+          <Label className="text-xs font-medium text-black uppercase tracking-wide">
+            Select Date
+          </Label>
+          <input
+            data-ocid="staff.daily_summary.date_input"
+            type="date"
+            value={selectedDate}
+            onChange={(e) => setSelectedDate(e.target.value)}
+            max={todayDate()}
+            className="w-full sm:w-60 h-11 rounded-xl border border-border bg-background px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/50 transition-colors"
+          />
+        </div>
+        <p className="mt-2 text-xs text-black">
+          Showing attendance for{" "}
+          <span className="font-semibold">{formatDate(selectedDate)}</span>
+        </p>
+      </div>
+
+      {!hasAnyRecords ? (
+        <div
+          data-ocid="staff.daily_summary.empty_state"
+          className="flex flex-col items-center gap-4 py-16 text-center"
+        >
+          <div className="w-14 h-14 rounded-2xl bg-muted flex items-center justify-center">
+            <LayoutGrid className="w-7 h-7 text-muted-foreground/60" />
+          </div>
+          <div>
+            <p className="font-medium text-foreground mb-1">
+              No Records for This Date
+            </p>
+            <p className="text-black text-sm max-w-xs">
+              No attendance has been marked for{" "}
+              <span className="font-semibold">{formatDate(selectedDate)}</span>.
+              Select a different date or mark attendance first.
+            </p>
+          </div>
+        </div>
+      ) : (
+        <ScrollArea className="w-full">
+          <div className="min-w-[600px]">
+            <div
+              data-ocid="staff.daily_summary.table"
+              className="bg-card border border-border rounded-xl overflow-hidden shadow-xs"
+            >
+              {/* Table header */}
+              <div className="bg-muted/60 border-b border-border">
+                <div
+                  className="grid text-xs font-semibold text-black uppercase tracking-wide"
+                  style={{
+                    gridTemplateColumns: `minmax(160px, 1fr) repeat(${subjects.length}, minmax(70px, 1fr))`,
+                  }}
+                >
+                  <div className="px-3 py-3 border-r border-border">
+                    Student
+                  </div>
+                  {subjects.map((subj) => (
+                    <div
+                      key={subj.id}
+                      className="px-2 py-3 text-center border-r border-border last:border-r-0 truncate"
+                      title={subj.name}
+                    >
+                      {subj.name}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Student rows */}
+              <div>
+                {students.map((regNo, idx) => {
+                  const row = summaryMatrix[regNo] ?? {};
+                  const hasRecord = Object.keys(row).length > 0;
+                  return (
+                    <div
+                      key={regNo}
+                      className={`grid border-b border-border last:border-b-0 transition-colors ${
+                        hasRecord ? "" : "opacity-40"
+                      }`}
+                      style={{
+                        gridTemplateColumns: `minmax(160px, 1fr) repeat(${subjects.length}, minmax(70px, 1fr))`,
+                      }}
+                    >
+                      {/* Student cell */}
+                      <div className="px-3 py-2 border-r border-border flex items-center gap-2">
+                        <span className="w-6 h-6 rounded-md bg-muted flex items-center justify-center text-[10px] font-bold text-black shrink-0">
+                          {idx + 1}
+                        </span>
+                        <span className="text-xs font-mono text-black truncate">
+                          {regNo}
+                        </span>
+                      </div>
+
+                      {/* Subject status cells */}
+                      {subjects.map((subj) => {
+                        const status = row[subj.id];
+                        let label = "–";
+                        let colorClass = "text-muted-foreground";
+                        if (status === AttendanceStatus.present) {
+                          label = "P";
+                          colorClass = "text-green-600 font-bold";
+                        } else if (status === AttendanceStatus.absent) {
+                          label = "A";
+                          colorClass = "text-red-600 font-bold";
+                        } else if (status === AttendanceStatus.onDuty) {
+                          label = "OD";
+                          colorClass = "text-blue-600 font-bold";
+                        }
+                        return (
+                          <div
+                            key={subj.id}
+                            className={`px-2 py-2 text-center text-xs border-r border-border last:border-r-0 ${colorClass}`}
+                          >
+                            {label}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  );
+                })}
+
+                {/* Summary totals row */}
+                <div
+                  className="grid bg-muted/60 border-t-2 border-border"
+                  style={{
+                    gridTemplateColumns: `minmax(160px, 1fr) repeat(${subjects.length}, minmax(70px, 1fr))`,
+                  }}
+                >
+                  <div className="px-3 py-2 border-r border-border text-xs font-semibold text-black">
+                    Totals
+                  </div>
+                  {subjects.map((subj) => {
+                    const t = subjectTotals[subj.id] ?? {
+                      present: 0,
+                      absent: 0,
+                      onDuty: 0,
+                    };
+                    return (
+                      <div
+                        key={subj.id}
+                        className="px-1 py-2 text-center border-r border-border last:border-r-0"
+                      >
+                        <div className="flex flex-col gap-0.5 items-center text-[10px] leading-tight">
+                          <span className="text-green-600 font-semibold">
+                            P:{t.present}
+                          </span>
+                          <span className="text-red-600 font-semibold">
+                            A:{t.absent}
+                          </span>
+                          {t.onDuty > 0 && (
+                            <span className="text-blue-600 font-semibold">
+                              OD:{t.onDuty}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          </div>
+        </ScrollArea>
+      )}
+    </div>
+  );
+}
+
 // ── Main Dashboard ────────────────────────────────────────────────────────────
 
 export default function StaffDashboardPage({
@@ -868,9 +1156,10 @@ export default function StaffDashboardPage({
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-background">
+    <div className="relative min-h-screen flex flex-col overflow-hidden">
+      <FloatingDotsBackground />
       {/* Nav bar */}
-      <header className="sticky top-0 z-20 bg-background/80 backdrop-blur-md border-b border-border px-4 py-3">
+      <header className="sticky top-0 z-20 bg-sky-600/80 backdrop-blur-md border-b border-white/20 px-4 py-3 relative">
         <div className="max-w-3xl mx-auto flex items-center gap-3">
           <div className="flex items-center gap-2 flex-1 min-w-0">
             <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center shadow-xs shrink-0">
@@ -903,7 +1192,7 @@ export default function StaffDashboardPage({
         </div>
       </header>
 
-      <main className="flex-1 w-full max-w-3xl mx-auto px-4 py-6">
+      <main className="flex-1 w-full max-w-3xl mx-auto px-4 py-6 relative z-10">
         <AnimatePresence>
           <motion.div
             initial={{ opacity: 0, y: 12 }}
@@ -911,30 +1200,38 @@ export default function StaffDashboardPage({
             transition={{ duration: 0.35 }}
           >
             <Tabs defaultValue="mark">
-              <TabsList className="w-full h-11 rounded-xl bg-muted p-1 mb-6">
+              <TabsList className="w-full h-auto rounded-xl bg-muted p-1 mb-6 grid grid-cols-4 gap-0.5">
                 <TabsTrigger
                   value="mark"
                   data-ocid="staff.mark_tab"
-                  className="flex-1 rounded-lg text-xs font-medium data-[state=active]:bg-card data-[state=active]:shadow-xs"
+                  className="rounded-lg text-[11px] font-medium data-[state=active]:bg-card data-[state=active]:shadow-xs flex flex-col sm:flex-row items-center gap-1 py-2 px-1"
                 >
-                  <ClipboardList className="w-3.5 h-3.5 mr-1.5" />
-                  Mark
+                  <ClipboardList className="w-3.5 h-3.5 shrink-0" />
+                  <span>Mark</span>
                 </TabsTrigger>
                 <TabsTrigger
                   value="records"
                   data-ocid="staff.records_tab"
-                  className="flex-1 rounded-lg text-xs font-medium data-[state=active]:bg-card data-[state=active]:shadow-xs"
+                  className="rounded-lg text-[11px] font-medium data-[state=active]:bg-card data-[state=active]:shadow-xs flex flex-col sm:flex-row items-center gap-1 py-2 px-1"
                 >
-                  <BookOpen className="w-3.5 h-3.5 mr-1.5" />
-                  Records
+                  <BookOpen className="w-3.5 h-3.5 shrink-0" />
+                  <span>Records</span>
                 </TabsTrigger>
                 <TabsTrigger
                   value="subjects"
                   data-ocid="staff.subjects_tab"
-                  className="flex-1 rounded-lg text-xs font-medium data-[state=active]:bg-card data-[state=active]:shadow-xs"
+                  className="rounded-lg text-[11px] font-medium data-[state=active]:bg-card data-[state=active]:shadow-xs flex flex-col sm:flex-row items-center gap-1 py-2 px-1"
                 >
-                  <Settings className="w-3.5 h-3.5 mr-1.5" />
-                  Subjects
+                  <Settings className="w-3.5 h-3.5 shrink-0" />
+                  <span>Subjects</span>
+                </TabsTrigger>
+                <TabsTrigger
+                  value="daily"
+                  data-ocid="staff.daily_summary_tab"
+                  className="rounded-lg text-[11px] font-medium data-[state=active]:bg-card data-[state=active]:shadow-xs flex flex-col sm:flex-row items-center gap-1 py-2 px-1"
+                >
+                  <LayoutGrid className="w-3.5 h-3.5 shrink-0" />
+                  <span>Summary</span>
                 </TabsTrigger>
               </TabsList>
 
@@ -963,20 +1260,29 @@ export default function StaffDashboardPage({
                   subjects={subjects}
                 />
               </TabsContent>
+
+              <TabsContent value="daily" className="mt-0">
+                <DailySummaryTab
+                  token={token}
+                  dept={dept}
+                  year={year}
+                  subjects={subjects}
+                />
+              </TabsContent>
             </Tabs>
           </motion.div>
         </AnimatePresence>
       </main>
 
       {/* Footer */}
-      <footer className="py-4 text-center">
-        <p className="text-black text-xs">
+      <footer className="py-4 text-center relative z-10">
+        <p className="text-white/80 text-xs">
           © {new Date().getFullYear()}.{" "}
           <a
             href={`https://caffeine.ai?utm_source=caffeine-footer&utm_medium=referral&utm_content=${encodeURIComponent(window.location.hostname)}`}
             target="_blank"
             rel="noopener noreferrer"
-            className="hover:text-foreground transition-colors"
+            className="hover:text-white transition-colors"
           >
             Built with ♥ using caffeine.ai
           </a>

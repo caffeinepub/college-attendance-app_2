@@ -6,12 +6,14 @@ import {
   GraduationCap,
   Loader2,
   Lock,
+  ShieldCheck,
   User,
   UserPlus,
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useState } from "react";
 import { toast } from "sonner";
+import FloatingDotsBackground from "../components/FloatingDotsBackground";
 import { useActor } from "../hooks/useActor";
 import { useCreateStaffAccount, useLogin } from "../hooks/useQueries";
 
@@ -38,8 +40,10 @@ export default function StaffLoginPage({
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [createError, setCreateError] = useState("");
+  const [accessCode, setAccessCode] = useState("");
 
-  const { isFetching: isConnecting } = useActor();
+  const { actor, isFetching: isConnecting } = useActor();
+  const isReady = !!actor && !isConnecting;
   const { mutate: login, isPending: isLoggingIn } = useLogin();
   const { mutate: createAccount, isPending: isCreating } =
     useCreateStaffAccount();
@@ -77,6 +81,13 @@ export default function StaffLoginPage({
     const trimmedPass = newPassword.trim();
     const trimmedConfirm = confirmPassword.trim();
 
+    if (accessCode.trim() !== "KCESTAFF") {
+      setCreateError(
+        "Invalid staff access code. Please contact your administrator.",
+      );
+      return;
+    }
+
     if (!trimmedUser || !trimmedPass || !trimmedConfirm) {
       setCreateError("All fields are required.");
       return;
@@ -104,13 +115,16 @@ export default function StaffLoginPage({
           setNewUsername("");
           setNewPassword("");
           setConfirmPassword("");
+          setAccessCode("");
           setMode("login");
           setUsername(trimmedUser);
         },
         onError: (err: Error) => {
           const msg = err.message?.includes("Not connected")
-            ? "Still connecting to server, please wait a moment and try again."
-            : err.message || "Could not create account.";
+            ? "Still connecting to server. Please wait a few seconds and try again."
+            : err.message?.includes("already taken")
+              ? err.message
+              : err.message || "Could not create account. Please try again.";
           setCreateError(msg);
           toast.error("Account creation failed", {
             description: msg,
@@ -121,9 +135,10 @@ export default function StaffLoginPage({
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-background">
+    <div className="relative min-h-screen flex flex-col overflow-hidden">
+      <FloatingDotsBackground />
       {/* Nav bar */}
-      <header className="sticky top-0 z-20 bg-background/80 backdrop-blur-md border-b border-border px-4 py-3 flex items-center gap-3">
+      <header className="sticky top-0 z-20 bg-sky-600/80 backdrop-blur-md border-b border-white/20 px-4 py-3 flex items-center gap-3 relative">
         <Button
           variant="ghost"
           size="icon"
@@ -142,7 +157,7 @@ export default function StaffLoginPage({
         </div>
       </header>
 
-      <main className="flex-1 flex items-center justify-center px-4 py-12">
+      <main className="flex-1 flex items-center justify-center px-4 py-12 relative z-10">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -287,13 +302,13 @@ export default function StaffLoginPage({
                       data-ocid="stafflogin.submit_button"
                       disabled={
                         isLoggingIn ||
-                        isConnecting ||
+                        !isReady ||
                         !username.trim() ||
                         !password.trim()
                       }
                       className="w-full h-11 rounded-xl text-base font-medium bg-primary hover:bg-primary/90 text-primary-foreground shadow-card mt-1"
                     >
-                      {isConnecting ? (
+                      {!isReady ? (
                         <>
                           <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                           Connecting…
@@ -307,12 +322,12 @@ export default function StaffLoginPage({
                         "Sign In"
                       )}
                     </Button>
-                    {isConnecting && (
+                    {!isReady && (
                       <p
                         data-ocid="stafflogin.connecting_state"
                         className="text-center text-xs text-muted-foreground mt-2"
                       >
-                        Connecting to server…
+                        Connecting to server, please wait…
                       </p>
                     )}
                   </form>
@@ -354,6 +369,36 @@ export default function StaffLoginPage({
                 {/* Create account form */}
                 <div className="bg-card border border-border rounded-2xl p-6 shadow-card">
                   <form onSubmit={handleCreate} className="space-y-4">
+                    {/* Staff Access Code */}
+                    <div className="space-y-1.5">
+                      <Label
+                        htmlFor="access-code"
+                        className="text-sm font-medium text-black"
+                      >
+                        Staff Access Code
+                      </Label>
+                      <div className="relative">
+                        <ShieldCheck className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                        <Input
+                          id="access-code"
+                          data-ocid="stafflogin.access_code_input"
+                          type="password"
+                          value={accessCode}
+                          onChange={(e) => {
+                            setAccessCode(e.target.value);
+                            setCreateError("");
+                          }}
+                          placeholder="Enter staff access code"
+                          autoComplete="off"
+                          autoFocus
+                          className="pl-10 h-11 rounded-xl border-border bg-background focus-visible:ring-primary"
+                        />
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        Contact your administrator for the access code
+                      </p>
+                    </div>
+
                     {/* New username */}
                     <div className="space-y-1.5">
                       <Label
@@ -375,7 +420,6 @@ export default function StaffLoginPage({
                           }}
                           placeholder="Choose a username (min. 3 chars)"
                           autoComplete="username"
-                          autoFocus
                           className="pl-10 h-11 rounded-xl border-border bg-background focus-visible:ring-primary"
                         />
                       </div>
@@ -450,14 +494,15 @@ export default function StaffLoginPage({
                       data-ocid="stafflogin.create_submit_button"
                       disabled={
                         isCreating ||
-                        isConnecting ||
+                        !isReady ||
+                        !accessCode.trim() ||
                         !newUsername.trim() ||
                         !newPassword.trim() ||
                         !confirmPassword.trim()
                       }
                       className="w-full h-11 rounded-xl text-base font-medium bg-primary hover:bg-primary/90 text-primary-foreground shadow-card mt-1"
                     >
-                      {isConnecting ? (
+                      {!isReady ? (
                         <>
                           <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                           Connecting…
@@ -471,12 +516,12 @@ export default function StaffLoginPage({
                         "Create Account"
                       )}
                     </Button>
-                    {isConnecting && (
+                    {!isReady && (
                       <p
                         data-ocid="stafflogin.create_connecting_state"
                         className="text-center text-xs text-muted-foreground mt-2"
                       >
-                        Connecting to server…
+                        Connecting to server, please wait…
                       </p>
                     )}
                   </form>
@@ -500,14 +545,14 @@ export default function StaffLoginPage({
       </main>
 
       {/* Footer */}
-      <footer className="py-4 text-center">
-        <p className="text-black text-xs">
+      <footer className="py-4 text-center relative z-10">
+        <p className="text-white/80 text-xs">
           © {new Date().getFullYear()}.{" "}
           <a
             href={`https://caffeine.ai?utm_source=caffeine-footer&utm_medium=referral&utm_content=${encodeURIComponent(window.location.hostname)}`}
             target="_blank"
             rel="noopener noreferrer"
-            className="hover:text-foreground transition-colors"
+            className="hover:text-white transition-colors"
           >
             Built with ♥ using caffeine.ai
           </a>

@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useMemo, useState } from "react";
+import FloatingDotsBackground from "../components/FloatingDotsBackground";
 import {
   useGetSubjectsForDept,
   useStudentAttendanceRecords,
@@ -350,9 +351,10 @@ export default function StudentLookupPage({
     !isLoading && submittedReg && !isError && subjectStats.length > 0;
 
   return (
-    <div className="min-h-screen flex flex-col bg-background">
+    <div className="relative min-h-screen flex flex-col overflow-hidden">
+      <FloatingDotsBackground />
       {/* Nav bar */}
-      <header className="sticky top-0 z-20 bg-background/80 backdrop-blur-md border-b border-border px-4 py-3 flex items-center gap-3">
+      <header className="sticky top-0 z-20 bg-sky-600/80 backdrop-blur-md border-b border-white/20 px-4 py-3 flex items-center gap-3 relative">
         <Button
           variant="ghost"
           size="icon"
@@ -376,7 +378,7 @@ export default function StudentLookupPage({
         </div>
       </header>
 
-      <main className="flex-1 w-full max-w-2xl mx-auto px-4 py-8">
+      <main className="flex-1 w-full max-w-2xl mx-auto px-4 py-8 relative z-10">
         <AnimatePresence mode="wait">
           {/* Search form */}
           {!submittedReg && (
@@ -846,14 +848,14 @@ export default function StudentLookupPage({
       </main>
 
       {/* Footer */}
-      <footer className="py-4 text-center">
-        <p className="text-black text-xs">
+      <footer className="py-4 text-center relative z-10">
+        <p className="text-white/80 text-xs">
           © {new Date().getFullYear()}.{" "}
           <a
             href={`https://caffeine.ai?utm_source=caffeine-footer&utm_medium=referral&utm_content=${encodeURIComponent(window.location.hostname)}`}
             target="_blank"
             rel="noopener noreferrer"
-            className="hover:text-foreground transition-colors"
+            className="hover:text-white transition-colors"
           >
             Built with ♥ using caffeine.ai
           </a>

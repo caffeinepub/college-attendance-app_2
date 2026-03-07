@@ -56,8 +56,8 @@ export function useSaveSubjectsForDept() {
     }): Promise<void> => {
       if (!actor) throw new Error("Not connected");
       const result = await actor.saveSubjectsForDept(token, deptKey, subjects);
-      if (result.__kind__ === "err") {
-        throw new Error(result.err);
+      if ("err" in result) {
+        throw new Error(result.err as string);
       }
     },
     onSuccess: (_data, variables) => {
@@ -84,8 +84,8 @@ export function useAttendanceByStaff(
         deptKey,
         BigInt(year),
       );
-      if (result.__kind__ === "err") {
-        throw new Error(result.err);
+      if ("err" in result) {
+        throw new Error(result.err as string);
       }
       return result.ok.map((r) => ({
         ...r,
@@ -142,8 +142,10 @@ export function useLogin() {
     }): Promise<SessionToken> => {
       if (!actor) throw new Error("Not connected to backend");
       const result = await actor.staffLogin(username, password);
-      if (result.__kind__ === "err") {
-        throw new Error(result.err || "Invalid username or password");
+      if ("err" in result) {
+        throw new Error(
+          (result.err as string) || "Invalid username or password",
+        );
       }
       const token = result.ok;
       saveTokenToSession(token);
@@ -165,8 +167,8 @@ export function useCreateStaffAccount() {
     }): Promise<void> => {
       if (!actor) throw new Error("Not connected to backend");
       const result = await actor.staffCreateAccount(username, password);
-      if (result.__kind__ === "err") {
-        throw new Error(result.err || "Failed to create account");
+      if ("err" in result) {
+        throw new Error((result.err as string) || "Failed to create account");
       }
     },
   });
@@ -221,8 +223,8 @@ export function useMarkAttendance() {
         dept,
         BigInt(year),
       );
-      if (result.__kind__ === "err") {
-        throw new Error(result.err || "Failed to mark attendance");
+      if ("err" in result) {
+        throw new Error((result.err as string) || "Failed to mark attendance");
       }
     },
     onSuccess: (_data, variables) => {
