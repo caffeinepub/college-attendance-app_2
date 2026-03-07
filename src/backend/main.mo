@@ -38,6 +38,7 @@ persistent actor {
   var subjectsStore = Map.empty<Text, [Subject]>();
   var recordList : [AttendanceRecord] = [];
   let userProfiles = Map.empty<Principal, UserProfile>();
+  var staffProfiles = Map.empty<Text, UserProfile>();
 
   // ── Initialize default staff account ─────────────────────────
   system func postupgrade() {
@@ -53,13 +54,20 @@ persistent actor {
   };
 
   // ── User Profile (required by frontend) ──────────────────────
+  // For anonymous callers (staff users), return their staff profile if logged in
+  // For Internet Identity users, return their principal-based profile
   public query ({ caller }) func getCallerUserProfile() : async ?UserProfile {
     if (caller.isAnonymous()) {
+      // Anonymous caller - no profile available
+      // (Staff would need to pass their session token to get profile)
       return null;
     };
+    // Non-anonymous Internet Identity user
     userProfiles.get(caller);
   };
 
+  // Staff users cannot use this (they're anonymous)
+  // Only Internet Identity users can save profiles
   public shared ({ caller }) func saveCallerUserProfile(profile : UserProfile) : async () {
     if (caller.isAnonymous()) {
       Runtime.trap("Unauthorized: Anonymous users cannot save profiles");
@@ -70,6 +78,8 @@ persistent actor {
     userProfiles.add(caller, profile);
   };
 
+  // For Internet Identity users: admin or self only
+  // For staff users: this won't work since they're anonymous
   public query ({ caller }) func getUserProfile(user : Principal) : async ?UserProfile {
     if (caller != user and not AccessControl.isAdmin(accessControlState, caller)) {
       Runtime.trap("Unauthorized: Can only view your own profile");
@@ -119,6 +129,7 @@ persistent actor {
   };
 
   // ── Subjects ──────────────────────────────────────────────────
+  // Public query - no authorization required
   public query func getSubjectsForDept(deptKey : Text) : async [Subject] {
     switch (subjectsStore.get(deptKey)) {
       case null { [] };
@@ -138,6 +149,7 @@ persistent actor {
   };
 
   // ── Attendance ────────────────────────────────────────────────
+  // Session token required for write operation
   public shared func markAttendance(
     token : Text,
     subjectId : Text,
@@ -173,6 +185,7 @@ persistent actor {
     };
   };
 
+  // Public query - no authorization required
   public query func getStudentAttendance(regNo : Text, dept : Text, year : Nat) : async [AttendanceRecord] {
     recordList.filter<AttendanceRecord>(
       func(r : AttendanceRecord) : Bool {
@@ -181,6 +194,7 @@ persistent actor {
     );
   };
 
+  // Session token required for read operation
   public shared func getAttendanceByStaff(token : Text, dept : Text, year : Nat) : async { #ok : [AttendanceRecord]; #err : Text } {
     switch (validateSession(token)) {
       case null { #err("Invalid or expired session. Please log in again.") };
