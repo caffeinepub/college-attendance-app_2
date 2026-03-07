@@ -2,7 +2,6 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Select,
   SelectContent,
@@ -19,7 +18,6 @@ import {
   CheckCircle2,
   ClipboardList,
   GraduationCap,
-  LayoutGrid,
   Loader2,
   LogOut,
   Plus,
@@ -55,6 +53,14 @@ interface StaffDashboardPageProps {
 
 function todayDate() {
   return new Date().toISOString().split("T")[0];
+}
+
+function isSunday(dateStr: string): boolean {
+  if (!dateStr) return false;
+  // Parse as local date to avoid timezone shifting
+  const [year, month, day] = dateStr.split("-").map(Number);
+  const d = new Date(year, month - 1, day);
+  return d.getDay() === 0;
 }
 
 function formatDate(dateStr: string) {
@@ -162,6 +168,8 @@ function MarkAttendanceTab({
     );
   };
 
+  const sundaySelected = isSunday(selectedDate);
+
   if (subjects.length === 0) {
     return (
       <div
@@ -261,147 +269,168 @@ function MarkAttendanceTab({
         </div>
       </div>
 
-      {/* Student list + submit button */}
-      <ScrollArea className="max-h-[75vh]">
-        <div className="space-y-1.5 pr-1">
-          {students.map((regNo, index) => {
-            const status = getStatus(regNo);
-            const isPresent = status === "present";
-            const isAbsent = status === "absent";
-            const isOnDuty = status === "onduty";
-
-            return (
-              <motion.div
-                key={regNo}
-                data-ocid={`staff.student_item.${index + 1}`}
-                initial={{ opacity: 0, y: 4 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: Math.min(index * 0.008, 0.3) }}
-                className={`flex items-center gap-3 px-3.5 py-2.5 rounded-xl border transition-all ${
-                  isPresent
-                    ? "bg-success/8 border-success/25"
-                    : isOnDuty
-                      ? "bg-onduty/8 border-onduty/25"
-                      : "bg-card border-border"
-                }`}
-              >
-                {/* Index badge */}
-                <div
-                  className={`w-8 h-8 rounded-lg flex items-center justify-center text-[11px] font-bold shrink-0 ${
-                    isPresent
-                      ? "bg-success/20 text-green-600"
-                      : isOnDuty
-                        ? "bg-onduty/20 text-blue-600"
-                        : "bg-muted text-red-600"
-                  }`}
-                >
-                  {index + 1}
-                </div>
-
-                {/* Reg number */}
-                <div className="flex-1 min-w-0">
-                  <p
-                    className={`text-sm font-semibold font-mono tracking-tight ${
-                      isPresent
-                        ? "text-green-600"
-                        : isOnDuty
-                          ? "text-blue-600"
-                          : "text-red-600"
-                    }`}
-                  >
-                    {regNo}
-                  </p>
-                </div>
-
-                {/* Toggle buttons */}
-                <div className="flex items-center gap-1 shrink-0">
-                  <button
-                    type="button"
-                    data-ocid={`staff.present_toggle.${index + 1}`}
-                    onClick={() => setStatus(regNo, "present")}
-                    className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
-                      isPresent
-                        ? "bg-success text-success-foreground shadow-xs"
-                        : "bg-muted text-muted-foreground hover:bg-success/15 hover:text-success-foreground"
-                    }`}
-                  >
-                    <CheckCircle2 className="w-3.5 h-3.5" />
-                    <span className="hidden sm:inline">P</span>
-                  </button>
-                  <button
-                    type="button"
-                    data-ocid={`staff.absent_toggle.${index + 1}`}
-                    onClick={() => setStatus(regNo, "absent")}
-                    className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
-                      isAbsent
-                        ? "bg-destructive/20 text-red-600 shadow-xs border border-destructive/40"
-                        : "bg-muted text-muted-foreground hover:bg-destructive/15 hover:text-red-600"
-                    }`}
-                  >
-                    <XCircle className="w-3.5 h-3.5" />
-                    <span className="hidden sm:inline">A</span>
-                  </button>
-                  <button
-                    type="button"
-                    data-ocid={`staff.onduty_toggle.${index + 1}`}
-                    onClick={() => setStatus(regNo, "onduty")}
-                    className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
-                      isOnDuty
-                        ? "bg-onduty text-blue-600 shadow-xs"
-                        : "bg-muted text-muted-foreground hover:bg-onduty/15 hover:text-blue-600"
-                    }`}
-                  >
-                    <ShieldCheck className="w-3.5 h-3.5" />
-                    <span className="hidden sm:inline">OD</span>
-                  </button>
-                </div>
-              </motion.div>
-            );
-          })}
-
-          {/* Confirmation checkbox + Submit button — shown below last student */}
-          <div className="pt-4 pb-2 space-y-3">
-            <label
-              htmlFor="confirm-submit"
-              className="flex items-center gap-3 px-3.5 py-3 rounded-xl border border-border bg-card cursor-pointer select-none hover:bg-muted/40 transition-colors"
-            >
-              <input
-                id="confirm-submit"
-                type="checkbox"
-                data-ocid="staff.confirm_checkbox"
-                checked={confirmed}
-                onChange={(e) => setConfirmed(e.target.checked)}
-                className="w-4 h-4 accent-primary rounded cursor-pointer"
-              />
-              <span className="text-sm text-black">
-                I have reviewed all attendance entries and confirm they are
-                correct.
-              </span>
-            </label>
-
-            <Button
-              data-ocid="staff.submit_button"
-              onClick={handleSubmit}
-              disabled={
-                isSubmitting || !selectedSubject || !selectedDate || !confirmed
-              }
-              className="w-full h-12 rounded-xl text-base font-medium bg-primary hover:bg-primary/90 text-primary-foreground shadow-card disabled:opacity-50"
-            >
-              {isSubmitting ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Submitting…
-                </>
-              ) : (
-                <>
-                  <ClipboardList className="w-4 h-4 mr-2" />
-                  Submit Attendance
-                </>
-              )}
-            </Button>
+      {/* Sunday holiday warning */}
+      {sundaySelected && (
+        <div className="flex items-start gap-3 rounded-xl border border-yellow-300 bg-yellow-50 px-4 py-3">
+          <span className="text-yellow-500 text-lg shrink-0">🏖️</span>
+          <div>
+            <p className="text-sm font-semibold text-yellow-800">
+              Sunday — Weekend Holiday
+            </p>
+            <p className="text-xs text-yellow-700 mt-0.5">
+              Attendance cannot be marked on Sundays. Sunday absences are
+              excluded from the attendance percentage automatically.
+            </p>
           </div>
         </div>
-      </ScrollArea>
+      )}
+
+      {/* Student list + submit button */}
+      {!sundaySelected && (
+        <div>
+          <div className="space-y-1.5">
+            {students.map((regNo, index) => {
+              const status = getStatus(regNo);
+              const isPresent = status === "present";
+              const isAbsent = status === "absent";
+              const isOnDuty = status === "onduty";
+
+              return (
+                <motion.div
+                  key={regNo}
+                  data-ocid={`staff.student_item.${index + 1}`}
+                  initial={{ opacity: 0, y: 4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: Math.min(index * 0.008, 0.3) }}
+                  className={`flex items-center gap-3 px-3.5 py-2.5 rounded-xl border transition-all ${
+                    isPresent
+                      ? "bg-success/8 border-success/25"
+                      : isOnDuty
+                        ? "bg-onduty/8 border-onduty/25"
+                        : "bg-card border-border"
+                  }`}
+                >
+                  {/* Index badge */}
+                  <div
+                    className={`w-8 h-8 rounded-lg flex items-center justify-center text-[11px] font-bold shrink-0 ${
+                      isPresent
+                        ? "bg-success/20 text-green-600"
+                        : isOnDuty
+                          ? "bg-onduty/20 text-blue-600"
+                          : "bg-muted text-red-600"
+                    }`}
+                  >
+                    {index + 1}
+                  </div>
+
+                  {/* Reg number */}
+                  <div className="flex-1 min-w-0">
+                    <p
+                      className={`text-sm font-semibold font-mono tracking-tight ${
+                        isPresent
+                          ? "text-green-600"
+                          : isOnDuty
+                            ? "text-blue-600"
+                            : "text-red-600"
+                      }`}
+                    >
+                      {regNo}
+                    </p>
+                  </div>
+
+                  {/* Toggle buttons */}
+                  <div className="flex items-center gap-1 shrink-0">
+                    <button
+                      type="button"
+                      data-ocid={`staff.present_toggle.${index + 1}`}
+                      onClick={() => setStatus(regNo, "present")}
+                      className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+                        isPresent
+                          ? "bg-success text-success-foreground shadow-xs"
+                          : "bg-muted text-muted-foreground hover:bg-success/15 hover:text-success-foreground"
+                      }`}
+                    >
+                      <CheckCircle2 className="w-3.5 h-3.5" />
+                      <span className="hidden sm:inline">P</span>
+                    </button>
+                    <button
+                      type="button"
+                      data-ocid={`staff.absent_toggle.${index + 1}`}
+                      onClick={() => setStatus(regNo, "absent")}
+                      className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+                        isAbsent
+                          ? "bg-destructive/20 text-red-600 shadow-xs border border-destructive/40"
+                          : "bg-muted text-muted-foreground hover:bg-destructive/15 hover:text-red-600"
+                      }`}
+                    >
+                      <XCircle className="w-3.5 h-3.5" />
+                      <span className="hidden sm:inline">A</span>
+                    </button>
+                    <button
+                      type="button"
+                      data-ocid={`staff.onduty_toggle.${index + 1}`}
+                      onClick={() => setStatus(regNo, "onduty")}
+                      className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+                        isOnDuty
+                          ? "bg-onduty text-blue-600 shadow-xs"
+                          : "bg-muted text-muted-foreground hover:bg-onduty/15 hover:text-blue-600"
+                      }`}
+                    >
+                      <ShieldCheck className="w-3.5 h-3.5" />
+                      <span className="hidden sm:inline">OD</span>
+                    </button>
+                  </div>
+                </motion.div>
+              );
+            })}
+
+            {/* Confirmation checkbox + Submit button — shown below last student */}
+            <div className="pt-4 pb-2 space-y-3">
+              <label
+                htmlFor="confirm-submit"
+                className="flex items-center gap-3 px-3.5 py-3 rounded-xl border border-border bg-card cursor-pointer select-none hover:bg-muted/40 transition-colors"
+              >
+                <input
+                  id="confirm-submit"
+                  type="checkbox"
+                  data-ocid="staff.confirm_checkbox"
+                  checked={confirmed}
+                  onChange={(e) => setConfirmed(e.target.checked)}
+                  className="w-4 h-4 accent-primary rounded cursor-pointer"
+                />
+                <span className="text-sm text-black">
+                  I have reviewed all attendance entries and confirm they are
+                  correct.
+                </span>
+              </label>
+
+              <Button
+                data-ocid="staff.submit_button"
+                onClick={handleSubmit}
+                disabled={
+                  isSubmitting ||
+                  !selectedSubject ||
+                  !selectedDate ||
+                  !confirmed
+                }
+                className="w-full h-12 rounded-xl text-base font-medium bg-primary hover:bg-primary/90 text-primary-foreground shadow-card disabled:opacity-50"
+              >
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Submitting…
+                  </>
+                ) : (
+                  <>
+                    <ClipboardList className="w-4 h-4 mr-2" />
+                    Submit Attendance
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -842,292 +871,6 @@ function ManageSubjectsTab({
   );
 }
 
-// ── Daily Summary Tab ─────────────────────────────────────────────────────────
-
-function DailySummaryTab({
-  token,
-  dept,
-  year,
-  subjects,
-}: {
-  token: SessionToken;
-  dept: string;
-  year: number;
-  subjects: SubjectEntry[];
-}) {
-  const {
-    data: records,
-    isLoading,
-    isError,
-  } = useAttendanceByStaff(token, dept, year);
-
-  const [selectedDate, setSelectedDate] = useState<string>(todayDate());
-
-  const students = useMemo(() => getStudentsForDept(dept, year), [dept, year]);
-
-  // Build a map: regNo -> subjectId -> status for the selected date
-  const summaryMatrix = useMemo(() => {
-    if (!records) return {};
-    const dayRecords = records.filter((r) => r.date === selectedDate);
-    const matrix: Record<string, Record<string, AttendanceStatus>> = {};
-    for (const student of students) {
-      matrix[student] = {};
-    }
-    for (const rec of dayRecords) {
-      if (matrix[rec.regNo]) {
-        matrix[rec.regNo][rec.subjectId] = rec.status;
-      }
-    }
-    return matrix;
-  }, [records, selectedDate, students]);
-
-  // Count totals per subject
-  const subjectTotals = useMemo(() => {
-    const totals: Record<
-      string,
-      { present: number; absent: number; onDuty: number }
-    > = {};
-    for (const subj of subjects) {
-      totals[subj.id] = { present: 0, absent: 0, onDuty: 0 };
-    }
-    for (const regNo of students) {
-      const row = summaryMatrix[regNo] ?? {};
-      for (const subj of subjects) {
-        const status = row[subj.id];
-        if (status === AttendanceStatus.present) totals[subj.id].present += 1;
-        else if (status === AttendanceStatus.onDuty)
-          totals[subj.id].onDuty += 1;
-        else if (status === AttendanceStatus.absent)
-          totals[subj.id].absent += 1;
-      }
-    }
-    return totals;
-  }, [summaryMatrix, students, subjects]);
-
-  const hasAnyRecords = useMemo(() => {
-    return students.some((regNo) => {
-      const row = summaryMatrix[regNo] ?? {};
-      return Object.keys(row).length > 0;
-    });
-  }, [summaryMatrix, students]);
-
-  if (isLoading) {
-    return (
-      <div data-ocid="staff.daily_summary.loading_state" className="space-y-3">
-        <Skeleton className="h-11 w-full rounded-xl" />
-        {[1, 2, 3].map((i) => (
-          <Skeleton key={i} className="h-10 w-full rounded-lg" />
-        ))}
-      </div>
-    );
-  }
-
-  if (isError) {
-    return (
-      <div
-        data-ocid="staff.daily_summary.error_state"
-        className="flex flex-col items-center gap-3 py-16 text-center"
-      >
-        <AlertCircle className="w-10 h-10 text-destructive/60" />
-        <p className="text-black text-sm">
-          Failed to load records. Please try again.
-        </p>
-      </div>
-    );
-  }
-
-  if (subjects.length === 0) {
-    return (
-      <div
-        data-ocid="staff.daily_summary.empty_state"
-        className="flex flex-col items-center gap-4 py-16 text-center"
-      >
-        <div className="w-14 h-14 rounded-2xl bg-muted flex items-center justify-center">
-          <BookOpen className="w-7 h-7 text-muted-foreground/60" />
-        </div>
-        <div>
-          <p className="font-medium text-foreground mb-1">No Subjects Added</p>
-          <p className="text-black text-sm max-w-xs">
-            Go to the <strong>Manage Subjects</strong> tab to add subjects for
-            this department first.
-          </p>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="space-y-4">
-      {/* Date picker */}
-      <div className="bg-card border border-border rounded-xl p-4 shadow-xs">
-        <div className="space-y-2">
-          <Label className="text-xs font-medium text-black uppercase tracking-wide">
-            Select Date
-          </Label>
-          <input
-            data-ocid="staff.daily_summary.date_input"
-            type="date"
-            value={selectedDate}
-            onChange={(e) => setSelectedDate(e.target.value)}
-            max={todayDate()}
-            className="w-full sm:w-60 h-11 rounded-xl border border-border bg-background px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/50 transition-colors"
-          />
-        </div>
-        <p className="mt-2 text-xs text-black">
-          Showing attendance for{" "}
-          <span className="font-semibold">{formatDate(selectedDate)}</span>
-        </p>
-      </div>
-
-      {!hasAnyRecords ? (
-        <div
-          data-ocid="staff.daily_summary.empty_state"
-          className="flex flex-col items-center gap-4 py-16 text-center"
-        >
-          <div className="w-14 h-14 rounded-2xl bg-muted flex items-center justify-center">
-            <LayoutGrid className="w-7 h-7 text-muted-foreground/60" />
-          </div>
-          <div>
-            <p className="font-medium text-foreground mb-1">
-              No Records for This Date
-            </p>
-            <p className="text-black text-sm max-w-xs">
-              No attendance has been marked for{" "}
-              <span className="font-semibold">{formatDate(selectedDate)}</span>.
-              Select a different date or mark attendance first.
-            </p>
-          </div>
-        </div>
-      ) : (
-        <ScrollArea className="w-full">
-          <div className="min-w-[600px]">
-            <div
-              data-ocid="staff.daily_summary.table"
-              className="bg-card border border-border rounded-xl overflow-hidden shadow-xs"
-            >
-              {/* Table header */}
-              <div className="bg-muted/60 border-b border-border">
-                <div
-                  className="grid text-xs font-semibold text-black uppercase tracking-wide"
-                  style={{
-                    gridTemplateColumns: `minmax(160px, 1fr) repeat(${subjects.length}, minmax(70px, 1fr))`,
-                  }}
-                >
-                  <div className="px-3 py-3 border-r border-border">
-                    Student
-                  </div>
-                  {subjects.map((subj) => (
-                    <div
-                      key={subj.id}
-                      className="px-2 py-3 text-center border-r border-border last:border-r-0 truncate"
-                      title={subj.name}
-                    >
-                      {subj.name}
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Student rows */}
-              <div>
-                {students.map((regNo, idx) => {
-                  const row = summaryMatrix[regNo] ?? {};
-                  const hasRecord = Object.keys(row).length > 0;
-                  return (
-                    <div
-                      key={regNo}
-                      className={`grid border-b border-border last:border-b-0 transition-colors ${
-                        hasRecord ? "" : "opacity-40"
-                      }`}
-                      style={{
-                        gridTemplateColumns: `minmax(160px, 1fr) repeat(${subjects.length}, minmax(70px, 1fr))`,
-                      }}
-                    >
-                      {/* Student cell */}
-                      <div className="px-3 py-2 border-r border-border flex items-center gap-2">
-                        <span className="w-6 h-6 rounded-md bg-muted flex items-center justify-center text-[10px] font-bold text-black shrink-0">
-                          {idx + 1}
-                        </span>
-                        <span className="text-xs font-mono text-black truncate">
-                          {regNo}
-                        </span>
-                      </div>
-
-                      {/* Subject status cells */}
-                      {subjects.map((subj) => {
-                        const status = row[subj.id];
-                        let label = "–";
-                        let colorClass = "text-muted-foreground";
-                        if (status === AttendanceStatus.present) {
-                          label = "P";
-                          colorClass = "text-green-600 font-bold";
-                        } else if (status === AttendanceStatus.absent) {
-                          label = "A";
-                          colorClass = "text-red-600 font-bold";
-                        } else if (status === AttendanceStatus.onDuty) {
-                          label = "OD";
-                          colorClass = "text-blue-600 font-bold";
-                        }
-                        return (
-                          <div
-                            key={subj.id}
-                            className={`px-2 py-2 text-center text-xs border-r border-border last:border-r-0 ${colorClass}`}
-                          >
-                            {label}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  );
-                })}
-
-                {/* Summary totals row */}
-                <div
-                  className="grid bg-muted/60 border-t-2 border-border"
-                  style={{
-                    gridTemplateColumns: `minmax(160px, 1fr) repeat(${subjects.length}, minmax(70px, 1fr))`,
-                  }}
-                >
-                  <div className="px-3 py-2 border-r border-border text-xs font-semibold text-black">
-                    Totals
-                  </div>
-                  {subjects.map((subj) => {
-                    const t = subjectTotals[subj.id] ?? {
-                      present: 0,
-                      absent: 0,
-                      onDuty: 0,
-                    };
-                    return (
-                      <div
-                        key={subj.id}
-                        className="px-1 py-2 text-center border-r border-border last:border-r-0"
-                      >
-                        <div className="flex flex-col gap-0.5 items-center text-[10px] leading-tight">
-                          <span className="text-green-600 font-semibold">
-                            P:{t.present}
-                          </span>
-                          <span className="text-red-600 font-semibold">
-                            A:{t.absent}
-                          </span>
-                          {t.onDuty > 0 && (
-                            <span className="text-blue-600 font-semibold">
-                              OD:{t.onDuty}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
-          </div>
-        </ScrollArea>
-      )}
-    </div>
-  );
-}
-
 // ── Main Dashboard ────────────────────────────────────────────────────────────
 
 export default function StaffDashboardPage({
@@ -1200,7 +943,7 @@ export default function StaffDashboardPage({
             transition={{ duration: 0.35 }}
           >
             <Tabs defaultValue="mark">
-              <TabsList className="w-full h-auto rounded-xl bg-muted p-1 mb-6 grid grid-cols-4 gap-0.5">
+              <TabsList className="w-full h-auto rounded-xl bg-muted p-1 mb-6 grid grid-cols-3 gap-0.5">
                 <TabsTrigger
                   value="mark"
                   data-ocid="staff.mark_tab"
@@ -1224,14 +967,6 @@ export default function StaffDashboardPage({
                 >
                   <Settings className="w-3.5 h-3.5 shrink-0" />
                   <span>Subjects</span>
-                </TabsTrigger>
-                <TabsTrigger
-                  value="daily"
-                  data-ocid="staff.daily_summary_tab"
-                  className="rounded-lg text-[11px] font-medium data-[state=active]:bg-card data-[state=active]:shadow-xs flex flex-col sm:flex-row items-center gap-1 py-2 px-1"
-                >
-                  <LayoutGrid className="w-3.5 h-3.5 shrink-0" />
-                  <span>Summary</span>
                 </TabsTrigger>
               </TabsList>
 
@@ -1257,15 +992,6 @@ export default function StaffDashboardPage({
                 <ManageSubjectsTab
                   token={token}
                   dept={dept}
-                  subjects={subjects}
-                />
-              </TabsContent>
-
-              <TabsContent value="daily" className="mt-0">
-                <DailySummaryTab
-                  token={token}
-                  dept={dept}
-                  year={year}
                   subjects={subjects}
                 />
               </TabsContent>

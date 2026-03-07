@@ -10,6 +10,80 @@ import type { AttendanceStatus } from "../types/attendance";
 import type { SubjectEntry } from "../utils/attendanceData";
 import { useActor } from "./useActor";
 
+// ── Canister error sanitizer ──────────────────────────────────────────────────
+function sanitizeCanisterError(err: unknown): Error {
+  const raw = err instanceof Error ? err.message : String(err);
+  if (
+    raw.includes("IC0508") ||
+    raw.includes("is stopped") ||
+    (raw.includes("Canister") && raw.includes("stopped"))
+  ) {
+    return new Error(
+      "The server is starting up. Please wait a few seconds and try again.",
+    );
+  }
+  if (raw.includes("IC0537") || raw.includes("no wasm module")) {
+    return new Error(
+      "The server is starting up. Please wait a few seconds and try again.",
+    );
+  }
+  if (raw.includes("IC0503") || raw.includes("out of cycles")) {
+    return new Error(
+      "Server is temporarily unavailable. Please try again in a moment.",
+    );
+  }
+  if (raw.includes("IC0504") || raw.includes("Reject code: 4")) {
+    return new Error("Request was rejected by the server. Please try again.");
+  }
+  if (
+    raw.includes("Not connected") ||
+    raw.includes("not connected") ||
+    raw.includes("NetworkError") ||
+    raw.includes("Failed to fetch")
+  ) {
+    return new Error(
+      "Still connecting to server. Please wait a moment and try again.",
+    );
+  }
+  // Return original error if no known pattern
+  return err instanceof Error ? err : new Error(raw);
+}
+
+function isTransientCanisterError(error: unknown): boolean {
+  const msg = error instanceof Error ? error.message : String(error);
+  return (
+    msg.includes("starting up") ||
+    msg.includes("Still connecting") ||
+    msg.toLowerCase().includes("stopped") ||
+    msg.includes("temporarily unavailable") ||
+    msg.includes("IC0508") ||
+    msg.includes("IC0537") ||
+    msg.includes("no wasm module") ||
+    msg.includes("IC0503") ||
+    msg.includes("Failed to fetch") ||
+    msg.includes("NetworkError") ||
+    msg.includes("fetch")
+  );
+}
+
+function shouldRetryOnCanisterError(
+  failureCount: number,
+  error: unknown,
+): boolean {
+  // Retry transient errors up to 30 times — silently, no error shown to user
+  return isTransientCanisterError(error) && failureCount < 30;
+}
+
+function retryDelayForCanister(failureCount: number): number {
+  // Fast retries: 500ms, 800ms, 1s, 1.5s … capped at 5s
+  return Math.min(500 + failureCount * 300, 5000);
+}
+
+// Returns true if the error should be hidden from the user (transient/server startup)
+export function isHiddenCanisterError(err: unknown): boolean {
+  return isTransientCanisterError(err);
+}
+
 // ── Session token helpers (sessionStorage only — not attendance data) ─────────
 function saveTokenToSession(token: string): void {
   sessionStorage.setItem("staff_session_token", token);
@@ -54,12 +128,23 @@ export function useSaveSubjectsForDept() {
       deptKey: string;
       subjects: SubjectEntry[];
     }): Promise<void> => {
-      if (!actor) throw new Error("Not connected");
-      const result = await actor.saveSubjectsForDept(token, deptKey, subjects);
-      if ("err" in result) {
-        throw new Error(result.err as string);
+      if (!actor)
+        throw new Error("Not connected to backend. Please wait and try again.");
+      try {
+        const result = await actor.saveSubjectsForDept(
+          token,
+          deptKey,
+          subjects,
+        );
+        if ("err" in result) {
+          throw new Error(result.err as string);
+        }
+      } catch (err) {
+        throw sanitizeCanisterError(err);
       }
     },
+    retry: shouldRetryOnCanisterError,
+    retryDelay: retryDelayForCanister,
     onSuccess: (_data, variables) => {
       void queryClient.invalidateQueries({
         queryKey: ["subjects", variables.deptKey],
@@ -140,17 +225,24 @@ export function useLogin() {
       username: string;
       password: string;
     }): Promise<SessionToken> => {
-      if (!actor) throw new Error("Not connected to backend");
-      const result = await actor.staffLogin(username, password);
-      if ("err" in result) {
-        throw new Error(
-          (result.err as string) || "Invalid username or password",
-        );
+      if (!actor)
+        throw new Error("Not connected to backend. Please wait and try again.");
+      try {
+        const result = await actor.staffLogin(username, password);
+        if ("err" in result) {
+          throw new Error(
+            (result.err as string) || "Invalid username or password",
+          );
+        }
+        const token = result.ok;
+        saveTokenToSession(token);
+        return token;
+      } catch (err) {
+        throw sanitizeCanisterError(err);
       }
-      const token = result.ok;
-      saveTokenToSession(token);
-      return token;
     },
+    retry: shouldRetryOnCanisterError,
+    retryDelay: retryDelayForCanister,
   });
 }
 
@@ -165,12 +257,19 @@ export function useCreateStaffAccount() {
       username: string;
       password: string;
     }): Promise<void> => {
-      if (!actor) throw new Error("Not connected to backend");
-      const result = await actor.staffCreateAccount(username, password);
-      if ("err" in result) {
-        throw new Error((result.err as string) || "Failed to create account");
+      if (!actor)
+        throw new Error("Not connected to backend. Please wait and try again.");
+      try {
+        const result = await actor.staffCreateAccount(username, password);
+        if ("err" in result) {
+          throw new Error((result.err as string) || "Failed to create account");
+        }
+      } catch (err) {
+        throw sanitizeCanisterError(err);
       }
     },
+    retry: shouldRetryOnCanisterError,
+    retryDelay: retryDelayForCanister,
   });
 }
 
@@ -211,22 +310,31 @@ export function useMarkAttendance() {
       dept?: string;
       year?: number;
     }): Promise<void> => {
-      if (!actor) throw new Error("Not connected to backend");
+      if (!actor)
+        throw new Error("Not connected to backend. Please wait and try again.");
       if (!dept || year === undefined) {
         throw new Error("Department and year are required");
       }
-      const result = await actor.markAttendance(
-        token,
-        subjectId,
-        date,
-        attendanceList,
-        dept,
-        BigInt(year),
-      );
-      if ("err" in result) {
-        throw new Error((result.err as string) || "Failed to mark attendance");
+      try {
+        const result = await actor.markAttendance(
+          token,
+          subjectId,
+          date,
+          attendanceList,
+          dept,
+          BigInt(year),
+        );
+        if ("err" in result) {
+          throw new Error(
+            (result.err as string) || "Failed to mark attendance",
+          );
+        }
+      } catch (err) {
+        throw sanitizeCanisterError(err);
       }
     },
+    retry: shouldRetryOnCanisterError,
+    retryDelay: retryDelayForCanister,
     onSuccess: (_data, variables) => {
       void queryClient.invalidateQueries({
         queryKey: ["staffRecords", variables.token],

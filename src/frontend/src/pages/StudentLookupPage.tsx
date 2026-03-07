@@ -84,6 +84,15 @@ function AttendanceGauge({ percentage }: { percentage: number }) {
   );
 }
 
+// ── Sunday / weekend detection ────────────────────────────────
+
+function isSunday(dateStr: string): boolean {
+  if (!dateStr) return false;
+  const [year, month, day] = dateStr.split("-").map(Number);
+  const d = new Date(year, month - 1, day);
+  return d.getDay() === 0;
+}
+
 // ── Date formatter ────────────────────────────────────────────
 
 function formatDate(dateStr: string): string {
@@ -253,8 +262,13 @@ export default function StudentLookupPage({
         };
       }
 
+      // Exclude Sunday (weekend holiday) records from all calculations
+      const nonHolidayRecords = rawRecords.filter((r) => !isSunday(r.date));
+
       const stats: SubjectStats[] = subjects.map((subj) => {
-        const subjRecords = rawRecords.filter((r) => r.subjectId === subj.id);
+        const subjRecords = nonHolidayRecords.filter(
+          (r) => r.subjectId === subj.id,
+        );
 
         const presentCount = subjRecords.filter(
           (r) => r.status === AttendanceStatus.present,
@@ -294,10 +308,10 @@ export default function StudentLookupPage({
           ? 0
           : (totalPresent / overallDenominator) * 100;
 
-      // ── Build missed-classes groups (absent records only) ──
+      // ── Build missed-classes groups (absent records only, no Sundays) ──
       const groups: MissedClassGroup[] = subjects
         .map((subj) => {
-          const absentDates = rawRecords
+          const absentDates = nonHolidayRecords
             .filter(
               (r) =>
                 r.subjectId === subj.id && r.status === AttendanceStatus.absent,

@@ -6,16 +6,21 @@ import {
   GraduationCap,
   Loader2,
   Lock,
+  RefreshCw,
   ShieldCheck,
   User,
   UserPlus,
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import FloatingDotsBackground from "../components/FloatingDotsBackground";
 import { useActor } from "../hooks/useActor";
-import { useCreateStaffAccount, useLogin } from "../hooks/useQueries";
+import {
+  isHiddenCanisterError,
+  useCreateStaffAccount,
+  useLogin,
+} from "../hooks/useQueries";
 
 interface StaffLoginPageProps {
   onLogin: (token: string) => void;
@@ -45,8 +50,31 @@ export default function StaffLoginPage({
   const { actor, isFetching: isConnecting } = useActor();
   const isReady = !!actor && !isConnecting;
   const { mutate: login, isPending: isLoggingIn } = useLogin();
-  const { mutate: createAccount, isPending: isCreating } =
-    useCreateStaffAccount();
+
+  // Pre-warm: ping the canister as soon as we have an actor so it's awake
+  // before the user finishes typing their credentials
+  useEffect(() => {
+    if (actor) {
+      // Fire-and-forget — just wake the canister up
+      actor.getSubjectsForDept("AIML").catch(() => {});
+    }
+  }, [actor]);
+  const {
+    mutate: createAccount,
+    isPending: isCreating,
+    failureCount: createFailureCount,
+    error: createMutationError,
+  } = useCreateStaffAccount();
+
+  const isRetrying = isCreating && createFailureCount > 0;
+  const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (countdownRef.current) clearInterval(countdownRef.current);
+    };
+  }, []);
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
@@ -62,20 +90,21 @@ export default function StaffLoginPage({
           toast.success("Logged in successfully");
           onLogin(token);
         },
-        onError: () => {
+        onError: (err: unknown) => {
+          // Don't show error for transient server issues (they are auto-retried)
+          if (isHiddenCanisterError(err)) return;
           setHasError(true);
-          toast.error("Login failed", {
-            description: isConnecting
-              ? "Still connecting to server, please wait a moment and try again."
-              : "Check your username and password and try again.",
-          });
+          const msg =
+            err instanceof Error
+              ? err.message
+              : "Check your username and password and try again.";
+          toast.error("Login failed", { description: msg });
         },
       },
     );
   };
 
-  const handleCreate = (e: React.FormEvent) => {
-    e.preventDefault();
+  const submitCreate = () => {
     setCreateError("");
     const trimmedUser = newUsername.trim();
     const trimmedPass = newPassword.trim();
@@ -119,19 +148,29 @@ export default function StaffLoginPage({
           setMode("login");
           setUsername(trimmedUser);
         },
-        onError: (err: Error) => {
-          const msg = err.message?.includes("Not connected")
-            ? "Still connecting to server. Please wait a few seconds and try again."
-            : err.message?.includes("already taken")
+        onError: (err: unknown) => {
+          if (isHiddenCanisterError(err)) return;
+          const msg =
+            err instanceof Error
               ? err.message
-              : err.message || "Could not create account. Please try again.";
-          setCreateError(msg);
-          toast.error("Account creation failed", {
-            description: msg,
-          });
+              : "Could not create account. Please try again.";
+          // Show "starting up" / "wait" messages as blue info, not red error
+          const isStartupMsg =
+            msg.includes("starting up") || msg.includes("wait");
+          if (isStartupMsg) {
+            setCreateError(`__info__${msg}`);
+          } else {
+            setCreateError(msg);
+            toast.error("Account creation failed", { description: msg });
+          }
         },
       },
     );
+  };
+
+  const handleCreate = (e: React.FormEvent) => {
+    e.preventDefault();
+    submitCreate();
   };
 
   return (
@@ -480,14 +519,43 @@ export default function StaffLoginPage({
                       </div>
                     </div>
 
-                    {createError && (
-                      <p
-                        data-ocid="stafflogin.create_error"
-                        className="text-destructive text-xs font-medium"
+                    {/* Show gentle spinner while silently retrying transient errors */}
+                    {isRetrying && (
+                      <div
+                        data-ocid="stafflogin.create_retrying_state"
+                        className="rounded-lg bg-blue-50 border border-blue-200 px-3 py-2 flex items-center gap-2"
                       >
-                        {createError}
-                      </p>
+                        <RefreshCw className="w-3.5 h-3.5 text-blue-500 animate-spin shrink-0" />
+                        <p className="text-blue-700 text-xs font-medium">
+                          Connecting to server, please wait…
+                        </p>
+                      </div>
                     )}
+                    {/* Only show error for permanent failures (not transient server errors) */}
+                    {createError &&
+                      !isRetrying &&
+                      !isHiddenCanisterError(createMutationError) && (
+                        <div
+                          data-ocid="stafflogin.create_error"
+                          className={`rounded-lg px-3 py-2 border ${
+                            createError.startsWith("__info__")
+                              ? "bg-blue-50 border-blue-200"
+                              : "bg-destructive/10 border-destructive/20"
+                          }`}
+                        >
+                          <p
+                            className={`text-xs font-medium ${
+                              createError.startsWith("__info__")
+                                ? "text-blue-700"
+                                : "text-destructive"
+                            }`}
+                          >
+                            {createError.startsWith("__info__")
+                              ? createError.slice(8)
+                              : createError}
+                          </p>
+                        </div>
+                      )}
 
                     <Button
                       type="submit"
@@ -510,7 +578,7 @@ export default function StaffLoginPage({
                       ) : isCreating ? (
                         <>
                           <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                          Creating…
+                          {isRetrying ? "Please wait…" : "Creating…"}
                         </>
                       ) : (
                         "Create Account"
