@@ -18,7 +18,7 @@ function generateDots(count: number): Dot[] {
       size: 3 + Math.random() * 4, // 3–7px
       duration: 8 + Math.random() * 12, // 8–20s
       delay: -(Math.random() * 12), // stagger starts (negative for immediate float)
-      opacity: 0.15 + Math.random() * 0.25, // 0.15–0.40
+      opacity: 0.18 + Math.random() * 0.22, // 0.18–0.40
     });
   }
   return dots;
@@ -35,8 +35,7 @@ export default function FloatingDotsBackground() {
         inset: 0,
         overflow: "hidden",
         zIndex: 0,
-        background:
-          "linear-gradient(160deg, #0ea5e9 0%, #38bdf8 50%, #7dd3fc 100%)",
+        background: "#ffffff",
         pointerEvents: "none",
       }}
     >
@@ -69,7 +68,7 @@ export default function FloatingDotsBackground() {
               width: `${dot.size}px`,
               height: `${dot.size}px`,
               borderRadius: "50%",
-              backgroundColor: "white",
+              backgroundColor: "#2563eb",
               "--dot-opacity": dot.opacity,
               animation: `float-dot ${dot.duration}s ${dot.delay}s infinite linear`,
             } as React.CSSProperties & { "--dot-opacity": number }

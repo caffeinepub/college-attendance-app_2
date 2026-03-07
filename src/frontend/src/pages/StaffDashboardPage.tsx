@@ -262,7 +262,7 @@ function MarkAttendanceTab({
       </div>
 
       {/* Student list + submit button */}
-      <ScrollArea className="max-h-[580px]">
+      <ScrollArea className="max-h-[75vh]">
         <div className="space-y-1.5 pr-1">
           {students.map((regNo, index) => {
             const status = getStatus(regNo);
@@ -1159,7 +1159,7 @@ export default function StaffDashboardPage({
     <div className="relative min-h-screen flex flex-col overflow-hidden">
       <FloatingDotsBackground />
       {/* Nav bar */}
-      <header className="sticky top-0 z-20 bg-sky-600/80 backdrop-blur-md border-b border-white/20 px-4 py-3 relative">
+      <header className="sticky top-0 z-20 bg-white/90 backdrop-blur-md border-b border-gray-200 px-4 py-3 relative">
         <div className="max-w-3xl mx-auto flex items-center gap-3">
           <div className="flex items-center gap-2 flex-1 min-w-0">
             <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center shadow-xs shrink-0">
@@ -1276,13 +1276,13 @@ export default function StaffDashboardPage({
 
       {/* Footer */}
       <footer className="py-4 text-center relative z-10">
-        <p className="text-white/80 text-xs">
+        <p className="text-gray-400 text-xs">
           © {new Date().getFullYear()}.{" "}
           <a
             href={`https://caffeine.ai?utm_source=caffeine-footer&utm_medium=referral&utm_content=${encodeURIComponent(window.location.hostname)}`}
             target="_blank"
             rel="noopener noreferrer"
-            className="hover:text-white transition-colors"
+            className="hover:text-gray-600 transition-colors"
           >
             Built with ♥ using caffeine.ai
           </a>

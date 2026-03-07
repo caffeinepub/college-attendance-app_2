@@ -138,7 +138,7 @@ export default function StaffLoginPage({
     <div className="relative min-h-screen flex flex-col overflow-hidden">
       <FloatingDotsBackground />
       {/* Nav bar */}
-      <header className="sticky top-0 z-20 bg-sky-600/80 backdrop-blur-md border-b border-white/20 px-4 py-3 flex items-center gap-3 relative">
+      <header className="sticky top-0 z-20 bg-white/90 backdrop-blur-md border-b border-gray-200 px-4 py-3 flex items-center gap-3 relative">
         <Button
           variant="ghost"
           size="icon"
@@ -546,13 +546,13 @@ export default function StaffLoginPage({
 
       {/* Footer */}
       <footer className="py-4 text-center relative z-10">
-        <p className="text-white/80 text-xs">
+        <p className="text-gray-400 text-xs">
           © {new Date().getFullYear()}.{" "}
           <a
             href={`https://caffeine.ai?utm_source=caffeine-footer&utm_medium=referral&utm_content=${encodeURIComponent(window.location.hostname)}`}
             target="_blank"
             rel="noopener noreferrer"
-            className="hover:text-white transition-colors"
+            className="hover:text-gray-600 transition-colors"
           >
             Built with ♥ using caffeine.ai
           </a>

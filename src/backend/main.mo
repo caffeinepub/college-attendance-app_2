@@ -78,13 +78,13 @@ persistent actor {
   };
 
   // ── Staff Authentication ──────────────────────────────────────
-  public shared ({ caller }) func staffLogin(username : Text, password : Text) : async { #ok : Text; #err : Text } {
-    // Anonymous callers are allowed to login (guests can authenticate)
+  // Token is just username-based — anonymous callers are allowed (username/password auth)
+  public shared func staffLogin(username : Text, password : Text) : async { #ok : Text; #err : Text } {
     switch (accounts.get(username)) {
       case null { #err("Invalid username or password") };
       case (?stored) {
         if (stored == password) {
-          let token = username # "_" # caller.toText();
+          let token = "sess_" # username # "_kce";
           sessions.add(token, username);
           #ok(token);
         } else {
@@ -94,12 +94,11 @@ persistent actor {
     };
   };
 
-  public shared ({ caller }) func staffCreateAccount(username : Text, password : Text) : async { #ok; #err : Text } {
-    // Anonymous callers are allowed to create accounts (guests can register)
-    if (username.size() < 2) {
+  public shared func staffCreateAccount(username : Text, password : Text) : async { #ok; #err : Text } {
+    if (username.size() < 3) {
       return #err("Username must be at least 3 characters long");
     };
-    if (password.size() < 3) {
+    if (password.size() < 4) {
       return #err("Password must be at least 4 characters long");
     };
     if (accounts.containsKey(username)) {
@@ -110,29 +109,16 @@ persistent actor {
     };
   };
 
-  public shared ({ caller }) func staffLogout(token : Text) : async () {
-    // Any caller can logout their own session
+  public shared func staffLogout(token : Text) : async () {
     sessions.remove(token);
   };
 
-  // ── Helper: validate session token and caller ────────────────
-  private func validateSessionAndCaller(token : Text, caller : Principal) : ?Text {
-    switch (sessions.get(token)) {
-      case null { null };
-      case (?username) {
-        // Verify the token belongs to this caller
-        let expectedToken = username # "_" # caller.toText();
-        if (token == expectedToken) {
-          ?username
-        } else {
-          null
-        };
-      };
-    };
+  // ── Helper: validate session token ───────────────────────────
+  private func validateSession(token : Text) : ?Text {
+    sessions.get(token);
   };
 
   // ── Subjects ──────────────────────────────────────────────────
-  // Public query - no auth required so any device can load subjects
   public query func getSubjectsForDept(deptKey : Text) : async [Subject] {
     switch (subjectsStore.get(deptKey)) {
       case null { [] };
@@ -140,13 +126,10 @@ persistent actor {
     };
   };
 
-  // Requires valid session token and caller verification
-  public shared ({ caller }) func saveSubjectsForDept(token : Text, deptKey : Text, subjectsArg : [Subject]) : async { #ok; #err : Text } {
-    if (caller.isAnonymous()) {
-      return #err("Unauthorized: Anonymous users cannot save subjects");
-    };
-    switch (validateSessionAndCaller(token, caller)) {
-      case null { #err("Invalid or expired session") };
+  // Session token required — no anonymous check (staff use username/password)
+  public shared func saveSubjectsForDept(token : Text, deptKey : Text, subjectsArg : [Subject]) : async { #ok; #err : Text } {
+    switch (validateSession(token)) {
+      case null { #err("Invalid or expired session. Please log in again.") };
       case (?_) {
         subjectsStore.add(deptKey, subjectsArg);
         #ok;
@@ -155,8 +138,7 @@ persistent actor {
   };
 
   // ── Attendance ────────────────────────────────────────────────
-  // Requires valid session token and caller verification
-  public shared ({ caller }) func markAttendance(
+  public shared func markAttendance(
     token : Text,
     subjectId : Text,
     date : Text,
@@ -164,11 +146,8 @@ persistent actor {
     dept : Text,
     year : Nat,
   ) : async { #ok; #err : Text } {
-    if (caller.isAnonymous()) {
-      return #err("Unauthorized: Anonymous users cannot mark attendance");
-    };
-    switch (validateSessionAndCaller(token, caller)) {
-      case null { #err("Invalid or expired session") };
+    switch (validateSession(token)) {
+      case null { #err("Invalid or expired session. Please log in again.") };
       case (?username) {
         let filtered = recordList.filter(
           func(r : AttendanceRecord) : Bool {
@@ -194,7 +173,6 @@ persistent actor {
     };
   };
 
-  // Public query - no auth required so any student on any device can view attendance
   public query func getStudentAttendance(regNo : Text, dept : Text, year : Nat) : async [AttendanceRecord] {
     recordList.filter<AttendanceRecord>(
       func(r : AttendanceRecord) : Bool {
@@ -203,14 +181,9 @@ persistent actor {
     );
   };
 
-  // Requires valid session token and caller verification
-  // This now returns all records for matching dept/year, regardless of who submitted them
-  public shared ({ caller }) func getAttendanceByStaff(token : Text, dept : Text, year : Nat) : async { #ok : [AttendanceRecord]; #err : Text } {
-    if (caller.isAnonymous()) {
-      return #err("Unauthorized: Anonymous users cannot access staff attendance data");
-    };
-    switch (validateSessionAndCaller(token, caller)) {
-      case null { #err("Invalid or expired session") };
+  public shared func getAttendanceByStaff(token : Text, dept : Text, year : Nat) : async { #ok : [AttendanceRecord]; #err : Text } {
+    switch (validateSession(token)) {
+      case null { #err("Invalid or expired session. Please log in again.") };
       case (?_) {
         let records = recordList.filter(
           func(r : AttendanceRecord) : Bool {
